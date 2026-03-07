@@ -1,0 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background text-white font-sans overflow-x-hidden min-h-screen relative;
+  }
+  
+  /* Background glow effect seen in the original app */
+  body::before {
+    content: '';
+    @apply absolute top-0 left-1/2 -translate-x-1/2 w-[100vw] max-w-[1000px] h-[500px] rounded-full opacity-20 pointer-events-none;
+    background: radial-gradient(circle at top center, theme('colors.primary.DEFAULT') 0%, transparent 70%);
+    filter: blur(100px);
+    z-index: -1;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-surface backdrop-blur-xl border border-white/5 rounded-xl;
+  }
+  
+  .glass-card {
+    @apply bg-surface backdrop-blur-[12px] border border-white/5 rounded-xl hover:border-primary/30 transition-all duration-300;
+  }
+  
+  .text-glow {
+    text-shadow: 0 0 10px theme('colors.primary.glow');
+  }
+}
+
+:root {
+  --radius: 0.75rem;
+}

@@ -1,0 +1,170 @@
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║    PONTOFACE - Sistema de Controle de Ponto Facial            ║
+║    Guia Rápido de Instalação                                  ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+
+CONTEÚDO DA PASTA DEPLOY:
+═════════════════════════
+
+  instalar.bat          → Script automático de build (Windows)
+  verificar.php         → Verificador de instalação (para a hospedagem)
+  quiosque-autostart.bat→ Configurador do PC de quiosque (Windows)
+  LEIA-ME.txt           → Este arquivo
+
+
+═══════════════════════════════════════════════════════════════
+  PASSO 1: COMPILAR O PROJETO (no seu PC com Windows)
+═══════════════════════════════════════════════════════════════
+
+  REQUISITOS:
+  • Node.js instalado (baixe em https://nodejs.org - versão LTS)
+  • Conexão com internet
+  
+  COMO FAZER:
+  1. Extraia o arquivo .zip do projeto
+  2. Abra a pasta "deploy" dentro do projeto extraído
+  3. Dê duplo clique em "instalar.bat"
+  4. Aguarde o processo automático
+  5. A pasta "dist" será criada com os arquivos de produção
+
+
+═══════════════════════════════════════════════════════════════
+  PASSO 2: ENVIAR PARA A HOSPEDAGEM (Hostinger)
+═══════════════════════════════════════════════════════════════
+
+  1. Acesse hpanel.hostinger.com
+  2. Vá em Gerenciador de Arquivos
+  3. Abra a pasta public_html
+  4. APAGUE todo o conteúdo existente
+  5. Envie TODOS os arquivos de DENTRO da pasta "dist"
+     (NÃO envie a pasta dist em si, apenas o conteúdo)
+  
+  ESTRUTURA CORRETA em public_html:
+  
+    public_html/
+    ├── .htaccess
+    ├── index.html
+    ├── verificar.php    (opcional, para verificação)
+    ├── _redirects
+    └── assets/
+        ├── index-xxxxx.js
+        ├── index-xxxxx.css
+        └── ...
+
+
+═══════════════════════════════════════════════════════════════
+  PASSO 3: VERIFICAR INSTALAÇÃO
+═══════════════════════════════════════════════════════════════
+
+  1. Acesse: https://seudominio.com/verificar.php
+  2. O verificador checará automaticamente:
+     • Se index.html é o build de produção
+     • Se a pasta assets existe com JS/CSS
+     • Se .htaccess está configurado
+     • Se HTTPS está ativo
+     • Se o backend está acessível
+  3. Corrija qualquer item marcado com erro
+  4. REMOVA o verificar.php após confirmar
+
+
+═══════════════════════════════════════════════════════════════
+  PASSO 4: ATIVAR HTTPS (OBRIGATÓRIO)
+═══════════════════════════════════════════════════════════════
+
+  A câmera do quiosque SÓ funciona com HTTPS!
+  
+  Na Hostinger:
+  1. Acesse Segurança → SSL
+  2. Ative o SSL gratuito (Let's Encrypt)
+  3. Ative "Forçar HTTPS"
+  4. Aguarde ~15 minutos para propagar
+
+
+═══════════════════════════════════════════════════════════════
+  PASSO 5: CRIAR CONTA DE ADMINISTRADOR
+═══════════════════════════════════════════════════════════════
+
+  1. Acesse https://seudominio.com
+  2. Na tela de login, clique "Primeiro acesso?"
+  3. Digite seu e-mail
+  4. Receba o código de 4 dígitos
+  5. Defina usuário e senha
+  6. Pronto! Acesse o painel administrativo
+
+
+═══════════════════════════════════════════════════════════════
+  PASSO 6: CONFIGURAR PC DO QUIOSQUE
+═══════════════════════════════════════════════════════════════
+
+  No PC que ficará na entrada da empresa:
+  
+  REQUISITOS DO PC:
+  • Windows 7/8/10/11
+  • Webcam USB conectada
+  • Chrome ou Edge atualizado
+  • Conexão com internet
+  
+  CONFIGURAÇÃO AUTOMÁTICA:
+  1. Copie "quiosque-autostart.bat" para o PC do quiosque
+  2. Execute o script
+  3. Informe o domínio, ID, nome e localização
+  4. O script cria o atalho e configura início automático
+  
+  CONFIGURAÇÃO MANUAL:
+  Crie um atalho do Chrome com os parâmetros:
+  
+  "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --start-fullscreen --disable-session-crashed-bubble --noerrdialogs --use-fake-ui-for-media-stream "https://seudominio.com/quiosque?id=entrada-1&name=Entrada Principal&location=Terreo"
+
+
+═══════════════════════════════════════════════════════════════
+  ATUALIZAÇÕES
+═══════════════════════════════════════════════════════════════
+
+  Para atualizar após alterações no OnSpace:
+  1. Baixe o novo código (botão Download no OnSpace)
+  2. Execute "instalar.bat" novamente
+  3. Substitua os arquivos no public_html
+  
+  Os dados (prestadores, registros, turnos) ficam na nuvem
+  e NÃO são afetados pela atualização.
+
+
+═══════════════════════════════════════════════════════════════
+  SOLUÇÃO DE PROBLEMAS
+═══════════════════════════════════════════════════════════════
+
+  PROBLEMA: Erro 404 ao acessar /login ou /quiosque
+  SOLUÇÃO:  O .htaccess não está no public_html ou mod_rewrite
+            está desativado. Verifique o arquivo.
+
+  PROBLEMA: Tela branca
+  SOLUÇÃO:  A pasta assets/ não foi enviada. Verifique se todos
+            os arquivos de dist/ foram copiados.
+
+  PROBLEMA: Câmera não abre
+  SOLUÇÃO:  HTTPS não está ativo. Ative SSL na Hostinger.
+            Também verifique permissões da câmera no Chrome.
+
+  PROBLEMA: "npm" não é reconhecido
+  SOLUÇÃO:  Node.js não está instalado. Instale em nodejs.org
+
+  PROBLEMA: Erro no build
+  SOLUÇÃO:  Apague a pasta node_modules e execute npm install
+            novamente antes do npm run build.
+
+
+═══════════════════════════════════════════════════════════════
+  ALTERNATIVA RÁPIDA: PUBLICAR PELO ONSPACE
+═══════════════════════════════════════════════════════════════
+
+  Se não quiser usar hospedagem própria:
+  
+  1. No editor OnSpace, clique "Publicar"
+  2. O sistema gera automaticamente uma URL .onspace.app
+  3. Opcionalmente, adicione seu domínio personalizado
+  4. Sem necessidade de build ou upload manual!
+
+
+═══════════════════════════════════════════════════════════════

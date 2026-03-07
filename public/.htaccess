@@ -1,0 +1,61 @@
+# PontoFace - Configuracao Apache SPA
+# Este arquivo e OBRIGATORIO para o roteamento funcionar
+
+# Forcar HTTPS (descomente se o SSL ja estiver ativo)
+# <IfModule mod_rewrite.c>
+#   RewriteEngine On
+#   RewriteCond %{HTTPS} off
+#   RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+# </IfModule>
+
+# Roteamento SPA - todas as rotas apontam para index.html
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Nao redirecionar arquivos e pastas existentes
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Nao redirecionar verificar.php
+  RewriteRule ^verificar\.php$ - [L]
+
+  # Redirecionar tudo para index.html
+  RewriteRule ^ /index.html [L]
+</IfModule>
+
+# Cache de assets estaticos (JS, CSS, imagens compilados pelo Vite)
+<IfModule mod_expires.c>
+  ExpiresActive On
+  # Assets com hash no nome = cache longo
+  <FilesMatch "\.(js|css)$">
+    ExpiresDefault "access plus 1 year"
+  </FilesMatch>
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType font/woff "access plus 1 year"
+  # HTML = sem cache (sempre pegar a versao mais recente)
+  ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+
+# Headers de seguranca
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+  # Permitir camera e microfone (necessario para o quiosque)
+  Header set Permissions-Policy "camera=(self), microphone=(self)"
+  # Sem cache para HTML
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
+# Compressao GZIP
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
+</IfModule>
