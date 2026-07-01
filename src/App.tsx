@@ -1,18 +1,34 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import SplashScreen from "@/components/layout/SplashScreen";
 import { Toaster } from "@/components/ui/toaster";
 import AppLayout from "@/components/layout/AppLayout";
 import { useAuthStore } from "@/stores/useAuthStore";
+import AutoLogoutWrapper from "@/components/features/AutoLogoutWrapper";
 
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const TimeClock = lazy(() => import("@/pages/TimeClock"));
 const Providers = lazy(() => import("@/pages/Providers"));
 const Shifts = lazy(() => import("@/pages/Shifts"));
 const Reports = lazy(() => import("@/pages/Reports"));
+const KiosksAdmin = lazy(() => import("@/pages/KiosksAdmin"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 const Docs = lazy(() => import("@/pages/Docs"));
 const Kiosk = lazy(() => import("@/pages/Kiosk"));
+const KioskTest = lazy(() => import("@/pages/KioskTest"));
 const Login = lazy(() => import("@/pages/Login"));
+const Holidays = lazy(() => import("@/pages/Holidays"));
+const Settings = lazy(() => import("@/pages/Settings"));
+const AdminsList = lazy(() => import("@/pages/AdminsList"));
+const MobileKiosk = lazy(() => import("@/pages/MobileKiosk"));
+
+// === Provider App ===
+const ProviderLogin = lazy(() => import("@/pages/ProviderApp/ProviderLogin"));
+const ProviderLayout = lazy(() => import("@/pages/ProviderApp/ProviderLayout"));
+const ProviderDashboard = lazy(() => import("@/pages/ProviderApp/ProviderDashboard"));
+const ProviderHistory = lazy(() => import("@/pages/ProviderApp/ProviderHistory"));
+const ProviderChat = lazy(() => import("@/pages/ProviderApp/ProviderChat"));
+const ChatAdmin = lazy(() => import("@/pages/ChatAdmin"));
 
 function PageLoader() {
   return (
@@ -59,32 +75,58 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading, initialized } = useAuthStore();
 
   if (!initialized || loading) return <PageLoader />;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) {
+    if (localStorage.getItem('pwaMode') === 'provider') {
+      return <Navigate to="/meu-ponto" replace />;
+    }
+    return <Navigate to="/login" replace />;
+  }
   return <>{children}</>;
 }
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
+
   return (
-    <BrowserRouter>
+    <>
+      <BrowserRouter>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Public routes */}
           <Route path="/quiosque" element={<Kiosk />} />
+          <Route path="/quiosque-teste" element={<KioskTest />} />
+          <Route path="/meu-ponto" element={<MobileKiosk />} />
+          <Route path="/parceiro/meu-ponto" element={<Navigate to="/meu-ponto" replace />} />
           <Route path="/login" element={<Login />} />
+
+          {/* Provider PWA routes */}
+          <Route path="/parceiro/login" element={<ProviderLogin />} />
+          <Route element={<ProviderLayout />}>
+            <Route path="/parceiro" element={<ProviderDashboard />} />
+            <Route path="/parceiro/extrato" element={<ProviderHistory />} />
+            <Route path="/parceiro/chat" element={<ProviderChat />} />
+          </Route>
 
           {/* Protected admin routes */}
           <Route
             element={
               <ProtectedRoute>
-                <AppLayout />
+                <AutoLogoutWrapper>
+                  <AppLayout />
+                </AutoLogoutWrapper>
               </ProtectedRoute>
             }
           >
             <Route path="/" element={<Dashboard />} />
             <Route path="/ponto" element={<TimeClock />} />
             <Route path="/prestadores" element={<Providers />} />
+            <Route path="/chat" element={<ChatAdmin />} />
             <Route path="/turnos" element={<Shifts />} />
             <Route path="/relatorios" element={<Reports />} />
+            <Route path="/feriados" element={<Holidays />} />
+            <Route path="/admin-quiosques" element={<KiosksAdmin />} />
+            <Route path="/equipe" element={<AdminsList />} />
+            <Route path="/configuracoes" element={<Settings />} />
             <Route path="/docs" element={<Docs />} />
             <Route path="*" element={<NotFound />} />
           </Route>
@@ -92,5 +134,7 @@ export default function App() {
       </Suspense>
       <Toaster />
     </BrowserRouter>
+    {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
+    </>
   );
 }

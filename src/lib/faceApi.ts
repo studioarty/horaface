@@ -15,8 +15,7 @@ async function getFaceApi(): Promise<any> {
     }
 
     const script = document.createElement("script");
-    script.src =
-      "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.14/dist/face-api.js";
+    script.src = "/face-api.js";
     script.onload = () => {
       faceapi = (window as any).faceapi;
       if (faceapi) {
@@ -67,13 +66,21 @@ export function areModelsLoaded(): boolean {
 
 export async function detectFace(
   video: HTMLVideoElement,
+  optionsInput?: { isLite?: boolean }
 ): Promise<any | null> {
   if (!modelsLoaded || !faceapi) return null;
 
   try {
+    // V19 Otimização de Performance
+    // Lite Mode: Processamento ágil com menor grade neural (224x224).
+    // Normal Mode: Precisão superior à longa distância (416x416).
+    const size = optionsInput?.isLite ? 224 : 416;
+
     const options = new faceapi.TinyFaceDetectorOptions({
-      inputSize: 320,
-      scoreThreshold: 0.5,
+      inputSize: size,
+      // Reduzindo o Score Threshold de 0.5 p/ 0.4 para a câmera piscar 
+      // achando o rosto mto mais veloz no escuro.
+      scoreThreshold: 0.4,
     });
 
     const result = await faceapi
@@ -94,10 +101,19 @@ export function matchFace(
   if (knownFaces.length === 0 || !faceapi) return null;
 
   let bestMatch: { id: string; name: string; distance: number } | null = null;
+  // console.log(`[Face Match] Iniciando comparação contra ${knownFaces.length} vetores de face...`);
 
   for (const known of knownFaces) {
+    if (!known.descriptor || known.descriptor.length !== 128) {
+      console.warn(`[Face Match] Descritor inválido para ${known.name} (${known.descriptor?.length} axes). Ignorando...`);
+      continue;
+    }
     const knownDesc = new Float32Array(known.descriptor);
     const distance = faceapi.euclideanDistance(descriptor, knownDesc);
+
+    if (distance < 0.6) {
+      console.log(`[Face Match] -> '${known.name}' (id:${known.id}) | Distância obtida: ${distance.toFixed(3)} | Threshold Configurado: ${FACE_MATCH_THRESHOLD}`);
+    }
 
     if (!bestMatch || distance < bestMatch.distance) {
       bestMatch = { id: known.id, name: known.name, distance };
@@ -105,7 +121,12 @@ export function matchFace(
   }
 
   if (bestMatch && bestMatch.distance < FACE_MATCH_THRESHOLD) {
+    console.log(`[Face Match] ✅ SUCESSO! Menor dist: ${bestMatch.distance.toFixed(3)} p/ '${bestMatch.name}' (Match: < ${FACE_MATCH_THRESHOLD})`);
     return bestMatch;
+  }
+
+  if (bestMatch) {
+    console.log(`[Face Match] ❌ RECUSADO (Muito diferente). Menor dist: ${bestMatch.distance.toFixed(3)} p/ '${bestMatch.name}' (Recusado: >= ${FACE_MATCH_THRESHOLD})`);
   }
 
   return null;

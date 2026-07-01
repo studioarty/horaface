@@ -11,7 +11,7 @@ import {
 import { useProviderStore } from "@/stores/useProviderStore";
 import { useTimeStore } from "@/stores/useTimeStore";
 import { useShiftStore } from "@/stores/useShiftStore";
-import { MIN_EXIT_MINUTES } from "@/constants/config";
+import { useKioskStore } from "@/stores/useKioskStore";
 import type { Shift } from "@/types";
 
 interface Notification {
@@ -42,6 +42,7 @@ export default function NotificationCenter() {
   const providerStore = useProviderStore();
   const timeStore = useTimeStore();
   const shiftStore = useShiftStore();
+  const kioskStore = useKioskStore();
 
   const [now, setNow] = useState(new Date());
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
@@ -127,7 +128,7 @@ export default function NotificationCenter() {
             type: "exit-ready",
             severity: "low",
             title: "Saída Liberada",
-            description: `Tempo mínimo de ${MIN_EXIT_MINUTES} min atingido (${activeMin} min ativos)`,
+            description: `Tempo mínimo de ${kioskStore.minCheckoutMinutes} min atingido (${activeMin} min ativos)`,
             providerName: provider.name,
             timestamp: now.getTime(),
           });
@@ -155,7 +156,7 @@ export default function NotificationCenter() {
         const ord = { high: 0, medium: 1, low: 2 };
         return ord[a.severity] - ord[b.severity];
       });
-  }, [providerStore, timeStore, shiftStore, now, dismissed]);
+  }, [providerStore, timeStore, shiftStore, kioskStore.minCheckoutMinutes, now, dismissed]);
 
   const highCount = notifications.filter((n) => n.severity === "high").length;
   const totalCount = notifications.length;

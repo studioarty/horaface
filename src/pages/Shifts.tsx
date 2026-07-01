@@ -69,21 +69,21 @@ export default function Shifts() {
       toast({
         variant: 'destructive',
         title: 'Nome obrigatório',
-        description: 'Informe o nome do turno.',
+        description: 'Informe o nome da janela contratual.',
       });
       return;
     }
 
     if (editingShift) {
       shiftStore.updateShift(editingShift.id, formData);
-      toast({ title: 'Turno atualizado!', description: formData.name });
+      toast({ title: 'Janela atualizada!', description: formData.name });
     } else {
       const shift: Shift = {
         id: `shift-${Date.now()}`,
         ...formData,
       };
       shiftStore.addShift(shift);
-      toast({ title: 'Turno criado!', description: formData.name });
+      toast({ title: 'Janela de horário criada!', description: formData.name });
     }
     resetForm();
   };
@@ -97,12 +97,12 @@ export default function Shifts() {
       toast({
         variant: 'destructive',
         title: 'Não é possível excluir',
-        description: `${linkedProviders.length} prestador(es) vinculado(s) a este turno.`,
+        description: `${linkedProviders.length} prestador(es) vinculado(s) a esta janela.`,
       });
       return;
     }
     shiftStore.removeShift(id);
-    toast({ title: 'Turno removido' });
+    toast({ title: 'Janela de horário removida' });
   };
 
   return (
@@ -110,15 +110,15 @@ export default function Shifts() {
       <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-heading text-xl sm:text-2xl font-bold text-text-primary">
-            Turnos de Trabalho
+            Janelas de Horários
           </h1>
           <p className="text-xs sm:text-sm text-text-secondary">
-            Configure os turnos disponíveis para os prestadores
+            Configure as janelas e períodos autorizados para a prestação de serviços
           </p>
         </div>
         <Button onClick={() => setShowForm(true)} className="gap-2 self-start sm:self-auto">
           <Plus className="size-4" />
-          Novo Turno
+          Nova Janela
         </Button>
       </div>
 
@@ -128,11 +128,11 @@ export default function Shifts() {
             <Clock className="size-8 text-primary" />
           </div>
           <p className="font-heading text-lg font-semibold text-text-primary">
-            Nenhum turno cadastrado
+            Nenhuma janela de horário cadastrada
           </p>
           <Button onClick={() => setShowForm(true)} className="gap-2">
             <Plus className="size-4" />
-            Criar Turno
+            Criar Janela
           </Button>
         </div>
       ) : (
@@ -160,19 +160,19 @@ export default function Shifts() {
         <DialogContent className="max-w-md border-border bg-surface mx-4 sm:mx-auto">
           <DialogHeader>
             <DialogTitle className="font-heading text-xl text-text-primary">
-              {editingShift ? 'Editar Turno' : 'Novo Turno'}
+              {editingShift ? 'Editar Janela' : 'Nova Janela'}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
             <div>
-              <Label className="text-text-secondary">Nome do Turno *</Label>
+              <Label className="text-text-secondary">Nome da Janela / Contrato *</Label>
               <Input
                 value={formData.name}
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
                 }
-                placeholder="Ex: Manhã"
+                placeholder="Ex: Prestação Diurna"
                 className="mt-1 border-border bg-elevated"
               />
             </div>
@@ -246,7 +246,7 @@ export default function Shifts() {
 
             <div className="flex gap-3 pt-2">
               <Button onClick={handleSubmit} className="flex-1">
-                {editingShift ? 'Atualizar' : 'Criar Turno'}
+                {editingShift ? 'Atualizar' : 'Criar Janela'}
               </Button>
               <Button variant="outline" onClick={resetForm} className="border-border">
                 Cancelar

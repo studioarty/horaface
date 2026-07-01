@@ -42,7 +42,7 @@ export default function AppLayout() {
           <Menu className="size-5" />
         </button>
         <h1 style={{ fontFamily: "Rajdhani, system-ui, sans-serif", fontSize: 18, fontWeight: 700, color: "var(--color-primary)" }}>
-          PontoFace
+          HoraFace
         </h1>
       </header>
 

@@ -9,13 +9,19 @@ interface UseWebcamReturn {
   stop: () => void;
 }
 
-export function useWebcam(): UseWebcamReturn {
+export function useWebcam(constraints?: MediaTrackConstraints): UseWebcamReturn {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const activeRef = useRef(false);
   const [isActive, setIsActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Store constraints in a ref to prevent stale callback closure issues
+  const constraintsRef = useRef(constraints);
+  useEffect(() => {
+    constraintsRef.current = constraints;
+  }, [constraints]);
 
   const stop = useCallback(() => {
     console.log("useWebcam: stop() chamado");
@@ -59,7 +65,7 @@ export function useWebcam(): UseWebcamReturn {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+        video: constraintsRef.current || { facingMode: "user" },
         audio: false,
       });
 

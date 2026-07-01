@@ -1,11 +1,10 @@
 import { useSyncExternalStore } from "react";
-import { supabase } from "@/lib/supabase";
-import type { User } from "@supabase/supabase-js";
+import { loginAdmin, setupAdmin } from "@/lib/api";
 
 interface AuthUser {
   id: string;
-  email: string;
   username: string;
+  role: string;
 }
 
 interface AuthState {
@@ -30,16 +29,14 @@ function getSnapshot() {
   return state;
 }
 
-function mapUser(user: User): AuthUser {
-  return {
-    id: user.id,
-    email: user.email!,
-    username: user.user_metadata?.username || user.user_metadata?.full_name || user.email!.split("@")[0],
-  };
-}
-
 function setUser(user: AuthUser | null) {
   state = { ...state, user, loading: false, initialized: true };
+  if (user) {
+    localStorage.setItem("auth-user", JSON.stringify(user));
+  } else {
+    localStorage.removeItem("auth-user");
+    localStorage.removeItem("auth-token");
+  }
   emit();
 }
 
@@ -48,74 +45,50 @@ function setLoading(loading: boolean) {
   emit();
 }
 
-// Initialize auth listener
 let initDone = false;
 function initAuth() {
   if (initDone) return;
   initDone = true;
 
-  let mounted = true;
+  const storedUser = localStorage.getItem("auth-user");
+  const storedToken = localStorage.getItem("auth-token");
 
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    if (mounted && session?.user) {
-      setUser(mapUser(session.user));
-    } else if (mounted) {
-      state = { ...state, loading: false, initialized: true };
-      emit();
-    }
-  });
-
-  supabase.auth.onAuthStateChange((event, session) => {
-    if (!mounted) return;
-    if (event === "SIGNED_IN" && session?.user) {
-      setUser(mapUser(session.user));
-    } else if (event === "SIGNED_OUT") {
+  if (storedUser && storedToken) {
+    try {
+      setUser(JSON.parse(storedUser));
+    } catch {
       setUser(null);
-    } else if (event === "TOKEN_REFRESHED" && session?.user) {
-      setUser(mapUser(session.user));
     }
-  });
+  } else {
+    setUser(null);
+  }
 }
 
-// Auth actions
-async function sendOtp(email: string) {
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { shouldCreateUser: true },
-  });
-  if (error) throw error;
-}
-
-async function verifyOtpAndSetPassword(email: string, token: string, password: string, username: string) {
-  const { data, error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
-  if (error) throw error;
-
-  const { data: updateData, error: updateError } = await supabase.auth.updateUser({
-    password,
-    data: { username },
-  });
-  if (updateError) throw updateError;
-  return updateData.user;
-}
-
-async function signIn(email: string, password: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw error;
-  return data.user;
+async function signIn(username: string, pass: string) {
+  setLoading(true);
+  try {
+    const res = await loginAdmin(username, pass);
+    if (res.error) throw new Error(res.error);
+    if (res.token && res.user) {
+      localStorage.setItem("auth-token", res.token);
+      setUser(res.user);
+      return res.user;
+    }
+    throw new Error("Falha no login");
+  } finally {
+    setLoading(false);
+  }
 }
 
 async function signOut() {
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
+  setUser(null);
 }
 
 interface AuthStoreAPI extends AuthState {
-  sendOtp: typeof sendOtp;
-  verifyOtpAndSetPassword: typeof verifyOtpAndSetPassword;
   signIn: typeof signIn;
   signOut: typeof signOut;
   setLoading: typeof setLoading;
-  mapUser: typeof mapUser;
+  setupRoot: () => Promise<any>;
 }
 
 export function useAuthStore(): AuthStoreAPI;
@@ -126,12 +99,10 @@ export function useAuthStore<T>(selector?: (s: AuthStoreAPI) => T) {
 
   const api: AuthStoreAPI = {
     ...snap,
-    sendOtp,
-    verifyOtpAndSetPassword,
     signIn,
     signOut,
     setLoading,
-    mapUser,
+    setupRoot: async () => await setupAdmin()
   };
 
   return selector ? selector(api) : api;

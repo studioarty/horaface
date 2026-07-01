@@ -11,10 +11,16 @@ import {
   ChevronsRight,
   X,
   LogOut,
+  Monitor,
+  Moon,
+  Sun,
+  Calendar,
+  MessageSquare,
 } from "lucide-react";
 import { NAV_ITEMS } from "@/constants/config";
 import { useSidebar } from "@/hooks/useSidebar";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { useThemeStore } from "@/stores/useThemeStore";
 import { useToast } from "@/hooks/use-toast";
 
 const iconMap: Record<string, React.ElementType> = {
@@ -24,6 +30,9 @@ const iconMap: Record<string, React.ElementType> = {
   Clock,
   BarChart3,
   BookOpen,
+  Monitor,
+  Calendar,
+  MessageSquare,
 };
 
 export default function Sidebar() {
@@ -31,6 +40,7 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const { collapsed, mobileOpen, toggle, closeMobile } = useSidebar();
   const auth = useAuthStore();
+  const { theme, toggleTheme } = useThemeStore();
   const { toast } = useToast();
 
   const handleLogout = async () => {
@@ -99,7 +109,7 @@ export default function Sidebar() {
                     lineHeight: 1.2,
                   }}
                 >
-                  PontoFace
+                  HoraFace
                 </h1>
                 <p
                   style={{
@@ -158,7 +168,11 @@ export default function Sidebar() {
             gap: 4,
           }}
         >
-          {NAV_ITEMS.map((item) => {
+          {NAV_ITEMS.filter((item) => {
+            if (auth.user?.role !== 'super_admin' && (item.path === '/admin-quiosques' || item.path === '/equipe' || item.path === '/configuracoes' || item.path === '/docs')) return false;
+            if (auth.user?.role === 'viewer' && (item.path === '/prestadores' || item.path === '/turnos' || item.path === '/feriados' || item.path === '/ponto')) return false;
+            return true;
+          }).map((item) => {
             const Icon = iconMap[item.icon];
             const isActive =
               item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
@@ -213,10 +227,10 @@ export default function Sidebar() {
                 {auth.user.username}
               </p>
               <p
-                className="truncate text-[10px]"
+                className="truncate text-[10px] uppercase"
                 style={{ color: "var(--color-text-muted)" }}
               >
-                {auth.user.email}
+                {auth.user.role === 'root' ? 'Super Admin' : 'Admin'}
               </p>
             </div>
           )}
@@ -236,24 +250,33 @@ export default function Sidebar() {
             {!collapsed && <span>Sair</span>}
           </button>
 
-          {/* Date */}
-          <p
-            className="mt-2"
-            style={{
-              fontFamily: "Share Tech Mono, monospace",
-              fontSize: collapsed ? 10 : 12,
-              color: "var(--color-text-muted)",
-              textAlign: collapsed ? "center" : "left",
-            }}
-          >
-            {collapsed
-              ? new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
-              : new Date().toLocaleDateString("pt-BR", {
+          {/* Date & Theme */}
+          <div className="mt-2 flex items-center" style={{ justifyContent: collapsed ? "center" : "space-between", flexDirection: collapsed ? "column" : "row" }}>
+            <p
+              style={{
+                fontFamily: "Share Tech Mono, monospace",
+                fontSize: collapsed ? 10 : 12,
+                color: "var(--color-text-muted)",
+                textAlign: collapsed ? "center" : "left",
+              }}
+            >
+              {collapsed
+                ? new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
+                : new Date().toLocaleDateString("pt-BR", {
                   weekday: "long",
                   day: "2-digit",
                   month: "long",
                 })}
-          </p>
+            </p>
+            <button
+              title="Alternar Tema Escuro/Claro"
+              onClick={toggleTheme}
+              className="text-slate-400 hover:text-cyan-500 transition-colors"
+              style={{ marginTop: collapsed ? 8 : 0 }}
+            >
+              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
       </aside>
     </>

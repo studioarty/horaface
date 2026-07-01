@@ -1,10 +1,9 @@
 export const APP_NAME = 'PontoFace';
 
 export const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.14/model';
+export const FACE_MATCH_THRESHOLD = 0.52;
 
-export const FACE_MATCH_THRESHOLD = 0.55;
 
-export const MIN_EXIT_MINUTES = 15;
 
 export const DETECTION_INTERVAL_MS = 600;
 
@@ -43,7 +42,12 @@ export const NAV_ITEMS = [
   { path: '/', label: 'Painel', icon: 'LayoutDashboard' },
   { path: '/ponto', label: 'Ponto Eletrônico', icon: 'ScanFace' },
   { path: '/prestadores', label: 'Prestadores', icon: 'Users' },
+  { path: '/chat', label: 'Chat Gestão', icon: 'MessageSquare' },
   { path: '/turnos', label: 'Turnos', icon: 'Clock' },
   { path: '/relatorios', label: 'Relatórios', icon: 'BarChart3' },
+  { path: '/feriados', label: 'Calendários', icon: 'Calendar' },
+  { path: '/admin-quiosques', label: 'Monitor Quiosques', icon: 'Monitor' },
+  { path: '/equipe', label: 'Equipe Gestora', icon: 'ShieldCheck' },
+  { path: '/configuracoes', label: 'Configurações', icon: 'Settings' },
   { path: '/docs', label: 'Documentação', icon: 'BookOpen' },
 ] as const;

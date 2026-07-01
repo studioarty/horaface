@@ -31,6 +31,33 @@
   --radius: 0.5rem;
 }
 
+[data-theme="light"] {
+  --color-bg-base: #F8FAFC;
+  --color-bg-surface: #FFFFFF;
+  --color-bg-elevated: #F1F5F9;
+  --color-bg-overlay: rgba(255, 255, 255, 0.88);
+
+  --color-primary: #0EA5E9;
+  --color-primary-dim: rgba(14, 165, 233, 0.12);
+  --color-accent: #0284C7;
+  --color-brand: #0369A1;
+
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94A3B8;
+
+  --color-border: rgba(15, 23, 42, 0.10);
+  --color-border-active: rgba(15, 23, 42, 0.25);
+
+  --color-success: #059669;
+  --color-warning: #D97706;
+  --color-error: #DC2626;
+  --color-info: #2563EB;
+
+  --glow-primary: 0 0 15px rgba(14, 165, 233, 0.15);
+  --glow-success: 0 0 15px rgba(5, 150, 105, 0.15);
+}
+
 @layer base {
   body {
     background: var(--color-bg-base);
@@ -43,7 +70,12 @@
     min-height: 100vh;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: "Rajdhani", system-ui, sans-serif;
   }
 
@@ -51,13 +83,16 @@
     width: 6px;
     height: 6px;
   }
+
   ::-webkit-scrollbar-track {
     background: var(--color-bg-base);
   }
+
   ::-webkit-scrollbar-thumb {
     background: var(--color-border-active);
     border-radius: 3px;
   }
+
   ::-webkit-scrollbar-thumb:hover {
     background: var(--color-primary);
   }
@@ -81,13 +116,25 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+
+  .text-shadow-glow {
+    text-shadow: 0 0 10px rgba(34, 211, 238, 0.5);
+  }
 }
 
 /* Kiosk scan animation */
 @keyframes kiosk-scan {
-  0% { top: 10%; }
-  50% { top: 85%; }
-  100% { top: 10%; }
+  0% {
+    top: 10%;
+  }
+
+  50% {
+    top: 85%;
+  }
+
+  100% {
+    top: 10%;
+  }
 }
 
 .animate-kiosk-scan {
@@ -97,8 +144,15 @@
 
 /* Notification pulse bar */
 @keyframes pulse-bar {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
 }
 
 .animate-pulse-bar {
@@ -114,6 +168,7 @@
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -129,6 +184,7 @@
     opacity: 0;
     transform: scale(0.95) translateY(-4px);
   }
+
   to {
     opacity: 1;
     transform: scale(1) translateY(0);

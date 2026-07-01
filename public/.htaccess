@@ -21,6 +21,10 @@
   # Nao redirecionar verificar.php
   RewriteRule ^verificar\.php$ - [L]
 
+  # Evitar que arquivos estáticos inexistentes caiam no index.html (evita crashes de JS/PWA)
+  RewriteCond %{REQUEST_URI} \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|bin|json|mp4|webm|webmanifest)$ [NC]
+  RewriteRule ^ - [R=404,L]
+
   # Redirecionar tudo para index.html
   RewriteRule ^ /index.html [L]
 </IfModule>

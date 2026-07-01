@@ -38,7 +38,12 @@ async function loadProviders() {
 async function addProvider(p: Provider) {
   data = [p, ...data];
   emit();
-  await insertProvider(p);
+  const res = await insertProvider(p) as any;
+  if (res && res.error) {
+    data = data.filter((item) => item.id !== p.id);
+    emit();
+    throw res.error;
+  }
 }
 
 async function updateProvider(id: string, patch: Partial<Provider>) {

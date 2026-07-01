@@ -41,7 +41,7 @@ export function generateInsights(
       type: 'summary',
       title: 'Sistema Pronto',
       description:
-        'Nenhum prestador cadastrado ainda. Cadastre prestadores com captura facial para iniciar o controle de ponto.',
+        'Nenhum prestador cadastrado ainda. Cadastre prestadores com captura facial para iniciar o controle de medição.',
       severity: 'low',
       timestamp: now,
     });

@@ -2,20 +2,36 @@ import { useSyncExternalStore } from "react";
 import {
   fetchKioskSettings,
   updateKioskSettingsDB,
-  type KioskImage,
   type KioskSettings,
 } from "@/lib/api";
+import type { KioskLibraryItem, KioskCampaign } from "@/types";
 
 interface KioskState extends KioskSettings {
   loaded: boolean;
 }
 
 let state: KioskState = {
-  images: [],
+  library: [],
+  campaigns: [],
   idleTimeoutSec: 30,
   slideIntervalSec: 8,
   showClock: true,
   message: "Toque na tela para registrar seu ponto",
+  minCheckoutMinutes: 15,
+  newsTickerSpeed: 35,
+  enableNewsTicker: true,
+  newsTickerUrl: "https://g1.globo.com/rss/g1/",
+  rssLayout: "3d",
+  rssSources: ["g1", "cnn"],
+  rssTargetKiosks: [],
+  liteTargetKiosks: [],
+  mobileLat: "",
+  mobileLng: "",
+  mobileRadius: 100, // Tolerância Padrão da Cerca
+  workLocations: [],
+  autoCheckoutToleranceMinutes: 15,
+  autoCheckoutWarningMinutes: 3,
+  backupKey: "",
   loaded: false,
 };
 
@@ -31,7 +47,7 @@ function subscribe(cb: () => void) {
   return () => { subs.delete(cb); };
 }
 
-function getSnapshot() {
+export function getKioskSnapshot() {
   return state;
 }
 
@@ -49,33 +65,74 @@ async function loadSettings() {
   }
 }
 
-async function addImage(url: string, label: string) {
-  const id = "img-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6);
-  const newImages = [...state.images, { id, url, label }];
-  state = { ...state, images: newImages };
-  emit();
-  await updateKioskSettingsDB({ images: newImages });
+// Wrapper for explicitly awaiting fetch
+async function fetchSettings() {
+   await loadSettings();
+   return state;
 }
 
-async function removeImage(id: string) {
-  const newImages = state.images.filter((i) => i.id !== id);
-  state = { ...state, images: newImages };
-  emit();
-  await updateKioskSettingsDB({ images: newImages });
+// Wrapper for Sync State
+function getState() {
+   return state;
 }
 
-async function reorderImages(images: KioskImage[]) {
-  state = { ...state, images };
+// === LIBRARY ACTIONS ===
+async function addLibraryItem(item: Omit<KioskLibraryItem, "id">) {
+  const id = "lib-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6);
+  const newLibrary = [...state.library, { ...item, id }];
+  state = { ...state, library: newLibrary };
   emit();
-  await updateKioskSettingsDB({ images });
+  await updateKioskSettingsDB({ library: newLibrary });
+}
+
+async function removeLibraryItem(id: string) {
+  const newLibrary = state.library.filter((i) => i.id !== id);
+  // Optional: remove this item from all existing campaigns to avoid loose links
+  const newCampaigns = state.campaigns.map(c => ({
+    ...c,
+    mediaItems: c.mediaItems.filter(mId => mId !== id)
+  }));
+  state = { ...state, library: newLibrary, campaigns: newCampaigns };
+  emit();
+  await updateKioskSettingsDB({ library: newLibrary, campaigns: newCampaigns });
+}
+
+async function updateLibraryItem(id: string, patch: Partial<KioskLibraryItem>) {
+  const newLibrary = state.library.map((i) => (i.id === id ? { ...i, ...patch } : i));
+  state = { ...state, library: newLibrary };
+  emit();
+  await updateKioskSettingsDB({ library: newLibrary });
+}
+
+// === CAMPAIGN ACTIONS ===
+async function createCampaign(campaign: Omit<KioskCampaign, "id">) {
+  const id = "camp-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6);
+  const newCampaigns = [...state.campaigns, { ...campaign, id }];
+  state = { ...state, campaigns: newCampaigns };
+  emit();
+  await updateKioskSettingsDB({ campaigns: newCampaigns });
+}
+
+async function updateCampaign(id: string, patch: Partial<KioskCampaign>) {
+  const newCampaigns = state.campaigns.map((c) => (c.id === id ? { ...c, ...patch } : c));
+  state = { ...state, campaigns: newCampaigns };
+  emit();
+  await updateKioskSettingsDB({ campaigns: newCampaigns });
+}
+
+async function deleteCampaign(id: string) {
+  const newCampaigns = state.campaigns.filter((c) => c.id !== id);
+  state = { ...state, campaigns: newCampaigns };
+  emit();
+  await updateKioskSettingsDB({ campaigns: newCampaigns });
 }
 
 async function updateSettings(
-  partial: Partial<Pick<KioskSettings, "idleTimeoutSec" | "slideIntervalSec" | "showClock" | "message">>,
+  partial: Partial<Pick<KioskSettings, "idleTimeoutSec" | "slideIntervalSec" | "showClock" | "message" | "minCheckoutMinutes" | "newsTickerSpeed" | "enableNewsTicker" | "newsTickerUrl" | "rssLayout" | "rssSources" | "rssTargetKiosks" | "liteTargetKiosks" | "mobileLat" | "mobileLng" | "mobileRadius" | "workLocations" | "autoCheckoutToleranceMinutes" | "autoCheckoutWarningMinutes" | "backupKey">>,
 ) {
   state = { ...state, ...partial };
   emit();
-  await updateKioskSettingsDB(partial);
+  return await updateKioskSettingsDB(partial);
 }
 
 function reload() {
@@ -85,32 +142,41 @@ function reload() {
 }
 
 interface StoreAPI extends KioskState {
-  addImage: typeof addImage;
-  removeImage: typeof removeImage;
-  reorderImages: typeof reorderImages;
+  addLibraryItem: typeof addLibraryItem;
+  removeLibraryItem: typeof removeLibraryItem;
+  updateLibraryItem: typeof updateLibraryItem;
+  createCampaign: typeof createCampaign;
+  updateCampaign: typeof updateCampaign;
+  deleteCampaign: typeof deleteCampaign;
   updateSettings: typeof updateSettings;
   loadSettings: typeof loadSettings;
+  fetchSettings: typeof fetchSettings;
   reload: typeof reload;
 }
-
-export type { KioskImage };
 
 export function useKioskStore(): StoreAPI;
 export function useKioskStore<T>(selector: (s: StoreAPI) => T): T;
 export function useKioskStore<T>(selector?: (s: StoreAPI) => T) {
-  const snap = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const snap = useSyncExternalStore(subscribe, getKioskSnapshot, getKioskSnapshot);
 
   if (!snap.loaded && !loading) loadSettings();
 
   const api: StoreAPI = {
     ...snap,
-    addImage,
-    removeImage,
-    reorderImages,
+    addLibraryItem,
+    removeLibraryItem,
+    updateLibraryItem,
+    createCampaign,
+    updateCampaign,
+    deleteCampaign,
     updateSettings,
     loadSettings,
+    fetchSettings,
     reload,
   };
 
   return selector ? selector(api) : api;
 }
+
+// Export getState for non-hook usage
+useKioskStore.getState = getState;

@@ -77,7 +77,7 @@ export default function ShiftCard({
 
       <div className="mt-3 border-t border-border pt-3">
         <span className="text-xs text-text-muted">
-          {providerCount} prestador(es) neste turno
+          {providerCount} prestador(es) nesta janela
         </span>
       </div>
     </div>

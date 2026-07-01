@@ -1,4 +1,4 @@
-import { User, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { User, Trash2, ToggleLeft, ToggleRight, Edit2 } from 'lucide-react';
 import type { Provider, Shift } from '@/types';
 import { Button } from '@/components/ui/button';
 
@@ -8,6 +8,7 @@ interface ProviderCardProps {
   shifts?: Shift[];    // multiple shifts
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
+  onEdit: (provider: Provider) => void;
 }
 
 export default function ProviderCard({
@@ -16,6 +17,7 @@ export default function ProviderCard({
   shifts,
   onToggle,
   onDelete,
+  onEdit,
 }: ProviderCardProps) {
   // Use shifts array if provided, otherwise fall back to single shift
   const allShifts = shifts && shifts.length > 0 ? shifts : shift ? [shift] : [];
@@ -54,13 +56,36 @@ export default function ProviderCard({
             </span>
           </div>
 
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
             <span className="font-mono text-xs text-text-muted">
               CPF: {provider.cpf}
             </span>
-            <span className="font-mono text-xs text-text-muted">
-              {provider.company}
-            </span>
+            {(() => {
+              const [companyName, minStayStr, startAct, endAct] = (provider.company || '').split('|');
+              return (
+                <>
+                  {companyName ? (
+                    <span className="inline-flex items-center gap-1 rounded bg-cyan-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-400 border border-cyan-400/20">
+                      Local: {companyName}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded bg-slate-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 border border-slate-400/20">
+                      Sem GPS (Livre)
+                    </span>
+                  )}
+                  {minStayStr && (
+                    <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400 border border-amber-400/20">
+                      Carência: {minStayStr} min
+                    </span>
+                  )}
+                  {startAct && endAct && (
+                    <span className="inline-flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-400/20" title="Horário de Atividades Permitido">
+                      🕒 Horário: {startAct} - {endAct}
+                    </span>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           {/* Shifts display */}
@@ -99,6 +124,15 @@ export default function ProviderCard({
       </div>
 
       <div className="mt-3 flex items-center justify-end gap-2 border-t border-border pt-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onEdit(provider)}
+          className="gap-1.5 text-xs text-blue-400 hover:bg-blue-500/10 hover:text-blue-300"
+        >
+          <Edit2 className="size-3.5" />
+          Editar
+        </Button>
         <Button
           variant="ghost"
           size="sm"

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   LogIn,
   LogOut,
@@ -21,13 +21,19 @@ import {
   drawDetection,
   matchFace,
 } from '@/lib/faceApi';
-import { DETECTION_INTERVAL_MS, MIN_EXIT_MINUTES } from '@/constants/config';
+import { useKioskStore } from '@/stores/useKioskStore';
 import { useShiftStore } from '@/stores/useShiftStore';
 import ScanOverlay from '@/components/features/ScanOverlay';
 import { useNavigate } from 'react-router-dom';
 
 export default function TimeClock() {
-  const { videoRef, isActive, isLoading, error: camError, start, stop } = useWebcam();
+  const videoConstraints = useMemo(() => ({
+    width: { ideal: 1280 },
+    height: { ideal: 720 },
+    facingMode: "user"
+  }), []);
+
+  const { videoRef, isActive, isLoading, error: camError, start, stop } = useWebcam(videoConstraints);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { toast } = useToast();
@@ -36,6 +42,7 @@ export default function TimeClock() {
   const store = useProviderStore();
   const timeStore = useTimeStore();
   const shiftStore = useShiftStore();
+  const minCheckoutMinutes = useKioskStore((s) => s.minCheckoutMinutes) || 15;
 
   const [modelsReady, setModelsReady] = useState(false);
   const [modelStatus, setModelStatus] = useState('Iniciando...');
@@ -104,12 +111,15 @@ export default function TimeClock() {
 
   useEffect(() => {
     if (!modelsReady || !isActive) return;
-    const loop = () => {
-      runDetection();
-      intervalRef.current = setTimeout(loop, DETECTION_INTERVAL_MS);
+    let isRunning = true;
+    const loop = async () => {
+      if (!isRunning) return;
+      await runDetection();
+      if (isRunning) intervalRef.current = setTimeout(loop, 800); // 800ms é mais sensato para CPUs fracas
     };
     loop();
     return () => {
+      isRunning = false;
       if (intervalRef.current) clearTimeout(intervalRef.current);
     };
   }, [modelsReady, isActive, runDetection]);
@@ -132,15 +142,29 @@ export default function TimeClock() {
     setProcessing(true);
     const existing = timeStore.getActiveRecord(matchedProvider.id);
     if (existing) {
-      toast({ variant: 'destructive', title: 'Já registrado', description: `${matchedProvider.name} já possui entrada ativa.` });
+      toast({ variant: 'destructive', title: 'Sessão em Andamento', description: `${matchedProvider.name} já possui uma medição ativa.` });
       setProcessing(false);
       return;
     }
     try {
-      await timeStore.addCheckIn(matchedProvider.id);
-      toast({ title: 'Entrada registrada!', description: `${matchedProvider.name} — ${new Date().toLocaleTimeString('pt-BR')}` });
+      let photoBase64 = undefined;
+      if (videoRef.current) {
+        const snapCanvas = document.createElement('canvas');
+        const snapWidth = 320;
+        const snapHeight = (videoRef.current.videoHeight / videoRef.current.videoWidth) * snapWidth;
+        snapCanvas.width = snapWidth;
+        snapCanvas.height = snapHeight;
+        const ctx = snapCanvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(videoRef.current, 0, 0, snapWidth, snapHeight);
+          photoBase64 = snapCanvas.toDataURL('image/jpeg', 0.6);
+        }
+      }
+
+      await timeStore.addCheckIn(matchedProvider.id, photoBase64);
+      toast({ title: 'Medição Iniciada!', description: `${matchedProvider.name} — ${new Date().toLocaleTimeString('pt-BR')}` });
     } catch {
-      toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível registrar entrada.' });
+      toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível iniciar o registro.' });
     }
     setProcessing(false);
   };
@@ -150,19 +174,19 @@ export default function TimeClock() {
     setProcessing(true);
     const activeRec = timeStore.getActiveRecord(matchedProvider.id);
     if (!activeRec) {
-      toast({ variant: 'destructive', title: 'Sem registro ativo', description: `${matchedProvider.name} não possui entrada ativa.` });
+      toast({ variant: 'destructive', title: 'Nenhuma medição ativa', description: `${matchedProvider.name} não possui sessão em andamento.` });
       setProcessing(false);
       return;
     }
     try {
       const result = await timeStore.addCheckOut(activeRec.id);
       if (result.success) {
-        toast({ title: 'Saída registrada!', description: result.message });
+        toast({ title: 'Sessão encerrada!', description: result.message });
       } else {
-        toast({ variant: 'destructive', title: 'Saída bloqueada', description: result.message });
+        toast({ variant: 'destructive', title: 'Ação bloqueada', description: result.message });
       }
     } catch {
-      toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível registrar saída.' });
+      toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível encerrar a medição.' });
     }
     setProcessing(false);
   };
@@ -176,14 +200,14 @@ export default function TimeClock() {
     <div className="min-h-screen p-4 sm:p-6 lg:p-8">
       <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-heading text-xl sm:text-2xl font-bold text-text-primary">Ponto Eletrônico</h1>
+          <h1 className="font-heading text-xl sm:text-2xl font-bold text-text-primary">Registro de Horas</h1>
           <p className="text-xs sm:text-sm text-text-secondary">Reconhecimento facial em tempo real via webcam</p>
         </div>
         <button
           onClick={() => navigate('/quiosque')}
           className="flex items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/20 transition-colors self-start sm:self-auto"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" /></svg>
           Modo Quiosque
         </button>
       </div>
@@ -214,10 +238,10 @@ export default function TimeClock() {
             </div>
             <div className="flex gap-3 border-t border-border p-3 sm:p-4">
               <Button onClick={handleCheckIn} disabled={!matchedProvider || processing || !!activeRecord} className="flex-1 gap-2 bg-success text-white hover:bg-success/90" size="lg">
-                <LogIn className="size-4" /><span className="hidden sm:inline">Registrar</span> Entrada
+                <LogIn className="size-4" /><span className="hidden sm:inline">Iniciar</span> Medição
               </Button>
               <Button onClick={handleCheckOut} disabled={!matchedProvider || processing || !activeRecord || remainingTime > 0} className="flex-1 gap-2 bg-error text-white hover:bg-error/90" size="lg">
-                <LogOut className="size-4" /><span className="hidden sm:inline">Registrar</span> Saída
+                <LogOut className="size-4" /><span className="hidden sm:inline">Encerrar</span> Medição
               </Button>
             </div>
           </div>
@@ -263,15 +287,15 @@ export default function TimeClock() {
               </div>
               {activeRecord && (
                 <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
-                  <p className="text-xs font-medium text-primary">● Turno em andamento</p>
-                  <p className="mt-1 font-mono text-xs text-text-secondary">Entrada: {new Date(activeRecord.checkIn).toLocaleTimeString('pt-BR')}</p>
+                  <p className="text-xs font-medium text-primary">● Medição em andamento</p>
+                  <p className="mt-1 font-mono text-xs text-text-secondary">Início: {new Date(activeRecord.checkIn).toLocaleTimeString('pt-BR')}</p>
                   {remainingTime > 0 && (
                     <div className="mt-2 flex items-center gap-1.5">
                       <Timer className="size-3 text-warning" />
-                      <p className="font-mono text-xs text-warning">Saída liberada em {remainingTime} min</p>
+                      <p className="font-mono text-xs text-warning">Encerramento liberado em {remainingTime} min</p>
                     </div>
                   )}
-                  {remainingTime === 0 && <p className="mt-1 font-mono text-xs text-success">✓ Saída liberada</p>}
+                  {remainingTime === 0 && <p className="mt-1 font-mono text-xs text-success">✓ Encerramento liberado</p>}
                 </div>
               )}
             </div>
@@ -292,8 +316,8 @@ export default function TimeClock() {
             <ul className="space-y-2 text-xs text-text-secondary">
               <li className="flex gap-2"><span className="text-primary">01</span>Posicione o rosto na câmera</li>
               <li className="flex gap-2"><span className="text-primary">02</span>Aguarde a identificação automática</li>
-              <li className="flex gap-2"><span className="text-primary">03</span>Clique em Entrada ou Saída</li>
-              <li className="flex gap-2"><span className="text-primary">04</span>Saída somente após {MIN_EXIT_MINUTES} minutos</li>
+              <li className="flex gap-2"><span className="text-primary">03</span>Clique em Iniciar ou Encerrar Medição</li>
+              <li className="flex gap-2"><span className="text-primary">04</span>Encerramento somente após {minCheckoutMinutes} minuto(s) da sessão</li>
             </ul>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { BookOpen, Server, Monitor, Globe, ShieldCheck, Settings, Terminal, Database, Wifi, Camera, Users, ArrowRight, CheckCircle2, Copy, ExternalLink, Upload, HardDrive, FolderOpen } from "lucide-react";
+import { BookOpen, Server, Monitor, Globe, ShieldCheck, Settings, Terminal, Database, Wifi, Camera, Users, ArrowRight, CheckCircle2, Copy, ExternalLink, Upload, HardDrive, FolderOpen, Sparkles, Clock, RefreshCw, MapPin, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -68,7 +68,7 @@ function InfoCard({ icon: Icon, title, children }: { icon: React.ElementType; ti
 }
 
 export default function Docs() {
-  const [activeTab, setActiveTab] = useState<"install" | "hosting" | "kiosk" | "admin" | "faq">("install");
+  const [activeTab, setActiveTab] = useState<"install" | "hosting" | "kiosk" | "admin" | "faq" | "updates">("updates");
   const origin = typeof window !== "undefined" ? window.location.origin : "https://seudominio.com";
 
   const tabs = [
@@ -77,6 +77,7 @@ export default function Docs() {
     { id: "kiosk" as const, label: "Quiosque", icon: Monitor },
     { id: "admin" as const, label: "Admin", icon: ShieldCheck },
     { id: "faq" as const, label: "FAQ", icon: BookOpen },
+    { id: "updates" as const, label: "Atualizações", icon: Sparkles },
   ];
 
   return (
@@ -90,7 +91,7 @@ export default function Docs() {
           </h1>
         </div>
         <p className="text-sm text-slate-400">
-          Guia completo para instalar e configurar o PontoFace no seu servidor e nos PCs de quiosque.
+          Guia completo para instalar e configurar o HoraFace no seu servidor e nos PCs de quiosque.
         </p>
       </div>
 
@@ -100,11 +101,10 @@ export default function Docs() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium whitespace-nowrap transition-all ${
-              activeTab === tab.id
+            className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium whitespace-nowrap transition-all ${activeTab === tab.id
                 ? "bg-cyan-500/15 text-cyan-400 border border-cyan-500/20"
                 : "text-slate-500 hover:text-slate-300"
-            }`}
+              }`}
           >
             <tab.icon className="size-4" />
             {tab.label}
@@ -117,34 +117,32 @@ export default function Docs() {
         {activeTab === "install" && (
           <div className="space-y-2">
             <InfoCard icon={Globe} title="Arquitetura do Sistema">
-              <p>O PontoFace é um sistema web que funciona com:</p>
+              <p>O HoraFace é um sistema web que funciona com:</p>
               <ul className="list-disc pl-4 mt-1 space-y-0.5">
                 <li><strong className="text-slate-300">Painel Admin</strong> — Acessado pelo navegador do servidor/PC admin</li>
                 <li><strong className="text-slate-300">Quiosque(s)</strong> — Acessado pelo navegador dos PCs na entrada da empresa</li>
-                <li><strong className="text-slate-300">Backend (OnSpace Cloud)</strong> — Banco de dados, autenticação e storage na nuvem</li>
+                <li><strong className="text-slate-300">Backend (Supabase Cloud)</strong> — Banco de dados, autenticação e armazenamento de fotos na nuvem</li>
               </ul>
               <p className="mt-2 text-amber-400/80">Ambos admin e quiosque acessam a mesma URL publicada, apenas com rotas diferentes.</p>
             </InfoCard>
 
             <div className="mt-6">
               <Step number={1} title="Publicar o Sistema">
-                <p>Publique o PontoFace através do OnSpace:</p>
+                <p>O frontend do HoraFace é uma SPA (Single Page Application) estática que se conecta diretamente à API do seu banco de dados na nuvem.</p>
                 <ol className="list-decimal pl-4 space-y-1">
-                  <li>Clique no botão <strong className="text-slate-300">"Publicar"</strong> no canto superior direito do editor</li>
-                  <li>Escolha <strong className="text-slate-300">"Publicar"</strong> para usar o domínio padrão <code className="text-cyan-400">.onspace.app</code></li>
-                  <li>Ou escolha <strong className="text-slate-300">"Adicionar Domínio Existente"</strong> para usar seu domínio personalizado</li>
+                  <li>Configure as credenciais do banco nos arquivos de ambiente do build</li>
+                  <li>Envie os arquivos compilados da pasta <code className="text-cyan-400">dist/</code> para o seu servidor (ex: Hostinger)</li>
                 </ol>
                 <CodeBlock label="URL publicada (exemplo)" code={`${origin}`} />
               </Step>
 
-              <Step number={2} title="Criar Conta de Administrador">
-                <p>Acesse a URL publicada no navegador:</p>
+              <Step number={2} title="Acessar e Inicializar o Painel">
+                <p>Acesse a URL publicada no navegador para criar as credenciais iniciais:</p>
                 <ol className="list-decimal pl-4 space-y-1">
-                  <li>Você será redirecionado para a tela de login</li>
-                  <li>Clique em <strong className="text-slate-300">"Primeiro acesso? Criar conta de administrador"</strong></li>
-                  <li>Informe seu e-mail e receba o código de verificação (4 dígitos)</li>
-                  <li>Defina nome de usuário e senha</li>
-                  <li>Pronto! Você terá acesso ao painel administrativo</li>
+                  <li>Você será redirecionado para a tela de login administrativo</li>
+                  <li>Clique no botão <strong className="text-slate-300">"Primeira Instalação?"</strong> no rodapé da página</li>
+                  <li>O sistema criará automaticamente a conta root padrão com o usuário <code className="text-cyan-400">admin</code> e senha <code className="text-cyan-400">admin</code></li>
+                  <li>Faça login e, em seguida, altere a senha na página de Administradores para garantir a segurança</li>
                 </ol>
               </Step>
 
@@ -158,7 +156,7 @@ export default function Docs() {
               </Step>
 
               <Step number={4} title="Cadastrar Prestadores">
-                <p>Em <strong className="text-slate-300">Prestadores</strong>, cadastre cada colaborador:</p>
+                <p>Em <strong className="text-slate-300">Prestadores</strong>, cadastre cada parceiro:</p>
                 <ol className="list-decimal pl-4 space-y-1">
                   <li>Preencha nome, CPF, cargo e empresa</li>
                   <li>Selecione o(s) turno(s): Só Manhã, Só Tarde, ou Manhã + Tarde</li>
@@ -193,18 +191,14 @@ export default function Docs() {
         {activeTab === "hosting" && (
           <div className="space-y-2">
             <InfoCard icon={HardDrive} title="Publicar na Hostinger">
-              <p>O PontoFace é uma aplicação web estática (SPA). Você pode hospedá-la em qualquer serviço que sirva arquivos HTML, incluindo a <strong className="text-slate-300">Hostinger</strong>.</p>
-              <p className="mt-1 text-amber-400/80">O backend (banco de dados, autenticação, storage) continua no OnSpace Cloud — você só precisa hospedar os arquivos do frontend.</p>
+              <p>O HoraFace é uma aplicação web estática (SPA). Você pode hospedá-la em qualquer serviço que sirva arquivos HTML, incluindo a <strong className="text-slate-300">Hostinger</strong>.</p>
+              <p className="mt-1 text-amber-400/80">O backend (banco de dados, autenticação, storage) roda totalmente na nuvem do **Supabase** — você só precisa hospedar os arquivos compilados do frontend.</p>
             </InfoCard>
 
             <div className="mt-6">
-              <Step number={1} title="Baixar o Código-Fonte">
-                <p>No editor do OnSpace:</p>
-                <ol className="list-decimal pl-4 space-y-1">
-                  <li>Clique no botão <strong className="text-slate-300">"Download"</strong> (ícone de download) no canto superior direito</li>
-                  <li>Será baixado um arquivo <code className="text-cyan-400">.zip</code> com todo o código-fonte do projeto</li>
-                  <li>Extraia o arquivo em uma pasta no seu computador</li>
-                </ol>
+              <Step number={1} title="Configurar o Ambiente Local">
+                <p>Verifique o arquivo de ambiente para o build do frontend. Certifique-se de configurar um arquivo <code className="text-cyan-400">.env</code> na raiz do projeto:</p>
+                <CodeBlock label=".env de Produção" code={`VITE_SUPABASE_URL=https://seu-projeto.supabase.co\nVITE_SUPABASE_ANON_KEY=sua-chave-anon-aqui`} />
               </Step>
 
               <Step number={2} title="Instalar Node.js">
@@ -293,13 +287,13 @@ export default function Docs() {
             </InfoCard>
 
             <InfoCard icon={FolderOpen} title="Atualizações Futuras">
-              <p>Para atualizar o sistema após mudanças no OnSpace:</p>
+              <p>Para atualizar o sistema após realizar alterações locais no código-fonte:</p>
               <ol className="list-decimal pl-4 space-y-1">
-                <li>Baixe o código atualizado do OnSpace (botão Download)</li>
-                <li>Execute <code className="text-cyan-400">npm install && npm run build</code> novamente</li>
-                <li>Substitua todos os arquivos em <code>public_html/</code> pelo novo conteúdo de <code>dist/</code></li>
+                <li>Abra o terminal na pasta raiz do projeto</li>
+                <li>Execute <code className="text-cyan-400">npm run build</code> novamente</li>
+                <li>Envie o conteúdo gerado dentro da pasta local <code>dist/</code> para a pasta <code>public_html/</code> na Hostinger</li>
               </ol>
-              <p className="mt-1 text-emerald-400">Os dados (prestadores, registros, turnos) ficam no banco de dados na nuvem e não são afetados pela atualização.</p>
+              <p className="mt-1 text-emerald-400">Os dados cadastrados (colaboradores, pontos, turnos) ficam salvos no Supabase na nuvem e não são perdidos nas atualizações do frontend.</p>
             </InfoCard>
 
             <InfoCard icon={Terminal} title="Solução de Problemas">
@@ -307,7 +301,7 @@ export default function Docs() {
                 <li><strong className="text-slate-300">Erro 404 ao acessar /login ou /quiosque:</strong> O <code>.htaccess</code> não está no <code>public_html/</code> ou o <code>mod_rewrite</code> está desativado</li>
                 <li><strong className="text-slate-300">Tela branca:</strong> Os arquivos JS/CSS não foram enviados. Verifique se a pasta <code>assets/</code> está dentro de <code>public_html/</code></li>
                 <li><strong className="text-slate-300">Câmera não abre:</strong> SSL (HTTPS) não está ativo. Ative em Segurança → SSL</li>
-                <li><strong className="text-slate-300">Erro de conexão com banco:</strong> Verifique se o domínio tem acesso à internet e não está bloqueando requisições para <code>*.backend.onspace.ai</code></li>
+                <li><strong className="text-slate-300">Erro de conexão com o banco:</strong> Verifique se a internet do local está ativa e se as chaves da API do Supabase no arquivo <code>.env</code> do build estavam corretas.</li>
               </ul>
             </InfoCard>
           </div>
@@ -403,6 +397,15 @@ goto loop`}
                 </ul>
               </InfoCard>
 
+              <InfoCard icon={Camera} title="Como Obter a Melhor Resolução da Webcam">
+                <p className="mb-2">O sistema solicita automaticamente imagens em alta definição (HD 720p ou superior) da câmera para o algoritmo de inteligência artificial trabalhar com alta fidelidade de detalhes. Para garantir que sua webcam entregue a melhor qualidade:</p>
+                <ul className="list-disc pl-4 space-y-1">
+                  <li><strong>Conexão em Porta USB 3.0:</strong> Conecte a webcam preferencialmente em portas USB azuis (USB 3.0/3.1) para garantir largura de banda de dados suficiente para resoluções HD/Full HD sem gargalos de hardware.</li>
+                  <li><strong>Ajuste de Foco e Iluminação:</strong> Se a sua câmera possuir anel de foco manual, ajuste-o até que as linhas do rosto fiquem nítidas. A IA necessita de boa iluminação frontal (evite contra-luz de janelas ou lâmpadas fortes atrás da pessoa).</li>
+                  <li><strong>Resolução de Captura no SO:</strong> No Linux/Windows, certifique-se de que a webcam não está sendo limitada por softwares de terceiros. A IA ajusta dinamicamente a grade neural (224x224 no modo leve ou 416x416 no modo de precisão superior).</li>
+                </ul>
+              </InfoCard>
+
               <InfoCard icon={Camera} title="Permissão de Câmera no Chrome">
                 <p>Para permitir câmera automaticamente sem popup:</p>
                 <ol className="list-decimal pl-4 space-y-0.5">
@@ -429,7 +432,7 @@ goto loop`}
               <div className="grid gap-3 sm:grid-cols-2">
                 {[
                   { icon: Monitor, title: "Painel de Controle", desc: "Dashboard com estatísticas em tempo real, notificações de atraso, monitor de câmera dos quiosques e configurações." },
-                  { icon: Camera, title: "Ponto Eletrônico", desc: "Registrar ponto via webcam diretamente do admin. Mesmo reconhecimento facial dos quiosques." },
+                  { icon: Camera, title: "Timesheet", desc: "Registrar medição via webcam diretamente do admin. Mesmo reconhecimento facial dos quiosques." },
                   { icon: Users, title: "Prestadores", desc: "Cadastrar, editar e remover prestadores com captura facial em 4 posições para máxima precisão." },
                   { icon: Settings, title: "Turnos", desc: "Gerenciar turnos de trabalho com horários, dias da semana e cores de identificação." },
                   { icon: Database, title: "Relatórios", desc: "Relatórios semanais, quinzenais e mensais com horas trabalhadas por prestador." },
@@ -498,8 +501,8 @@ goto loop`}
                 a: "O status no admin mudará para 'Offline' após 30 segundos sem heartbeat. Quando a conexão retornar, o quiosque se reconecta automaticamente.",
               },
               {
-                q: "Como funciona o tempo mínimo de 15 minutos?",
-                a: "Após registrar a entrada, o prestador só pode registrar a saída após 15 minutos. Isso previne registros acidentais e garante controle correto.",
+                q: "Como funciona o tempo mínimo de Medição?",
+                a: "Após registrar a entrada, o prestador só pode registrar a saída após aguardar o tempo dinâmico determinado pelo Administrador nas Configurações Globais. Isso previne cadastros acidentais duplos e garante o controle.",
               },
               {
                 q: "Posso personalizar as imagens do screensaver?",
@@ -522,6 +525,105 @@ goto loop`}
                 <p className="text-xs text-slate-400 pl-6">{item.a}</p>
               </div>
             ))}
+          </div>
+        )}
+
+        {activeTab === "updates" && (
+          <div className="space-y-6">
+            <InfoCard icon={Sparkles} title="Melhorias e Atualizações do Sistema">
+              <p>O HoraFace recebeu atualizações importantes para aumentar o controle, a segurança e a velocidade de distribuição de novas versões. Abaixo está o resumo das últimas implementações de jornada e auditoria.</p>
+            </InfoCard>
+
+            <div className="grid gap-4">
+              <div className="rounded-lg border border-slate-800 bg-slate-900/30 p-5 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">
+                    <Clock className="size-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-200" style={{ fontFamily: "Rajdhani, sans-serif" }}>1. Cadastro de Período de Atividades Customizado</h4>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Agora é possível cadastrar horários específicos de <strong>Início das Atividades</strong> e <strong>Fim das Atividades</strong> diretamente na ficha de cada colaborador. 
+                    </p>
+                    <ul className="list-disc pl-4 mt-2 space-y-1 text-xs text-slate-400">
+                      <li>O colaborador fica <strong>bloqueado</strong> de registrar o ponto antes do horário programado.</li>
+                      <li>Cartões de colaboradores com horários configurados exibem um badge verde esmeralda no painel (ex: <span className="text-emerald-400">🕒 Horário: 08:00 - 17:00</span>).</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-slate-800 bg-slate-900/30 p-5 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shrink-0">
+                    <MapPin className="size-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-200" style={{ fontFamily: "Rajdhani, sans-serif" }}>2. Colaboradores Livres (Qualquer Local - Sem GPS)</h4>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Criada a opção <strong>"Qualquer Local (Livre - Sem GPS)"</strong> nas configurações do colaborador.
+                    </p>
+                    <ul className="list-disc pl-4 mt-2 space-y-1 text-xs text-slate-400">
+                      <li>Permite que prestadores específicos batam ponto a qualquer hora e em qualquer lugar, ignorando restrições de turnos e cercas virtuais.</li>
+                      <li>Por segurança, os pontos registrados ainda enviam as coordenadas GPS para registro no histórico.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-slate-800 bg-slate-900/30 p-5 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 shrink-0">
+                    <AlertTriangle className="size-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-200" style={{ fontFamily: "Rajdhani, sans-serif" }}>3. Auditoria Silenciosa de Tentativas Bloqueadas</h4>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Mecanismo antifraude de auditoria implementado no aplicativo de marcação de ponto:
+                    </p>
+                    <ul className="list-disc pl-4 mt-2 space-y-1 text-xs text-slate-400">
+                      <li>Se um colaborador normal tentar bater o ponto fora do horário permitido ou fora da cerca de GPS, o sistema realiza a captura facial e das coordenadas de geolocalização.</li>
+                      <li>Esses dados de auditoria sobem para o servidor silenciosamente antes de mostrar a mensagem de erro na tela do dispositivo, registrando tentativas de fraudes.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-slate-800 bg-slate-900/30 p-5 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 shrink-0">
+                    <Camera className="size-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-200" style={{ fontFamily: "Rajdhani, sans-serif" }}>4. Registro Fotográfico no Check-out (Saída)</h4>
+                    <p className="text-xs text-slate-400 mt-1">
+                      A auditoria fotográfica foi expandida para cobrir todo o ciclo de presença:
+                    </p>
+                    <ul className="list-disc pl-4 mt-2 space-y-1 text-xs text-slate-400">
+                      <li>Agora, a saída (check-out) também exige o registro facial e geolocalização, gerando fotos de auditoria tanto para a entrada quanto para a saída do colaborador.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-slate-800 bg-slate-900/30 p-5 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shrink-0">
+                    <RefreshCw className="size-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-200" style={{ fontFamily: "Rajdhani, sans-serif" }}>5. Atualização Instantânea do Aplicativo (PWA Auto-Update)</h4>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Solução para evitar cache antigo nos navegadores de quiosques e celulares:
+                    </p>
+                    <ul className="list-disc pl-4 mt-2 space-y-1 text-xs text-slate-400">
+                      <li>Sempre que o usuário abre o aplicativo ou volta a focar na aba dele, o HoraFace busca novas atualizações da plataforma em segundo plano.</li>
+                      <li>Caso uma atualização seja detectada e instalada pelo Service Worker, o aplicativo reinicia de forma automatizada instantaneamente para aplicar as melhorias e correções imediatamente.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
