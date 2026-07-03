@@ -79,6 +79,12 @@ const MobileKiosk = () => {
         const freshSettings = await fetchKioskSettings();
         setLiveSettings(freshSettings);
 
+        // Sincroniza a voz escolhida no painel para o localStorage local do celular
+        // (azureTTS lê daqui como fallback quando o KioskStore ainda não foi populado)
+        if (freshSettings.ttsVoice) {
+          localStorage.setItem('horaface_tts_voice', freshSettings.ttsVoice);
+        }
+
         await timeStore.loadRecords();
 
         setAppState('ready');
