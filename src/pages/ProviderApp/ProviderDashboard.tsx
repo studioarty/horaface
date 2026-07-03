@@ -493,14 +493,14 @@ export default function ProviderDashboard() {
         </div>
       )}
 
-      {/* Botão de Ponto Mobile */}
+      {/* Botão de Marcação de Horas Mobile */}
       <div className="rounded-3xl border border-cyan-500/20 bg-cyan-950/5 p-5 flex flex-col items-center text-center gap-2 shadow-[0_0_20px_rgba(34,211,238,0.02)]">
         <h3 className="text-sm font-semibold text-cyan-400 font-heading">Registro de Atividades Mobile</h3>
         <p className="text-[11px] text-slate-400 max-w-xs leading-normal">
           Abra a câmera do seu celular para registrar sua entrada ou saída via selfie biométrica rápida.
         </p>
         <button
-          onClick={() => navigate('/meu-ponto')}
+          onClick={() => navigate('/marcar-horas')}
           className="w-full mt-2 flex items-center justify-center gap-2 h-11 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-medium rounded-2xl shadow-lg shadow-emerald-950/30 transition-all active:scale-[0.98]"
         >
           <PlayCircle className="size-4" />

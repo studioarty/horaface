@@ -487,7 +487,7 @@ const MobileKiosk = () => {
               </div>
               
               <h2 className="text-lg font-bold text-red-400 mb-2">
-                {appState === 'gps_error' ? "Ponto Recusado (GPS)" : "Fora do Horário Permitido"}
+                {appState === 'gps_error' ? "Marcação Recusada (GPS)" : "Fora do Horário Permitido"}
               </h2>
               
               <div className="w-full bg-red-950/15 border border-red-900/30 p-4 rounded-2xl mb-6 text-left relative overflow-hidden">

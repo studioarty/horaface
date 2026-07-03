@@ -40,7 +40,7 @@ export const SHIFT_COLORS = [
 
 export const NAV_ITEMS = [
   { path: '/', label: 'Painel', icon: 'LayoutDashboard' },
-  { path: '/ponto', label: 'Ponto Eletrônico', icon: 'ScanFace' },
+  { path: '/aferidor-de-horas', label: 'Aferição de Horas', icon: 'ScanFace' },
   { path: '/prestadores', label: 'Prestadores', icon: 'Users' },
   { path: '/chat', label: 'Chat Gestão', icon: 'MessageSquare' },
   { path: '/turnos', label: 'Turnos', icon: 'Clock' },

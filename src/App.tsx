@@ -77,7 +77,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!initialized || loading) return <PageLoader />;
   if (!user) {
     if (localStorage.getItem('pwaMode') === 'provider') {
-      return <Navigate to="/meu-ponto" replace />;
+      return <Navigate to="/marcar-horas" replace />;
     }
     return <Navigate to="/login" replace />;
   }
@@ -95,8 +95,8 @@ export default function App() {
           {/* Public routes */}
           <Route path="/quiosque" element={<Kiosk />} />
           <Route path="/quiosque-teste" element={<KioskTest />} />
-          <Route path="/meu-ponto" element={<MobileKiosk />} />
-          <Route path="/parceiro/meu-ponto" element={<Navigate to="/meu-ponto" replace />} />
+          <Route path="/marcar-horas" element={<MobileKiosk />} />
+          <Route path="/parceiro/marcar-horas" element={<Navigate to="/marcar-horas" replace />} />
           <Route path="/login" element={<Login />} />
 
           {/* Provider PWA routes */}
@@ -118,7 +118,7 @@ export default function App() {
             }
           >
             <Route path="/" element={<Dashboard />} />
-            <Route path="/ponto" element={<TimeClock />} />
+            <Route path="/aferidor-de-horas" element={<TimeClock />} />
             <Route path="/prestadores" element={<Providers />} />
             <Route path="/chat" element={<ChatAdmin />} />
             <Route path="/turnos" element={<Shifts />} />

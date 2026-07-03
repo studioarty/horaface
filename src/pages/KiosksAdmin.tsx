@@ -10,7 +10,7 @@ export default function KiosksAdmin() {
         const kioskUrl = `${baseUrl}/quiosque`;
         const batContent = `@echo off
 echo ==============================================
-echo PONTOFACE - INSTALADOR DE QUIOSQUE WINDOWS
+echo HORAFACE - INSTALADOR DE QUIOSQUE WINDOWS
 echo ==============================================
 echo Configurando PC para Modo Quiosque Exclusivo...
 echo.
@@ -32,7 +32,7 @@ if not exist "%CHROME_PATH%" (
 :: Criar atalho na inicializacao do Windows
 set STARTUP_DIR=%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup
 echo set WshShell = WScript.CreateObject("WScript.Shell") > CreateShortcut.vbs
-echo set oShellLink = WshShell.CreateShortcut("%STARTUP_DIR%\\PontoFace_Kiosk.lnk") >> CreateShortcut.vbs
+echo set oShellLink = WshShell.CreateShortcut("%STARTUP_DIR%\\HoraFace_Quiosque.lnk") >> CreateShortcut.vbs
 echo oShellLink.TargetPath = "%CHROME_PATH%" >> CreateShortcut.vbs
 echo oShellLink.Arguments = "--kiosk ${kioskUrl}" >> CreateShortcut.vbs
 echo oShellLink.Save >> CreateShortcut.vbs
@@ -44,14 +44,14 @@ set DESKTOP_DIR=%USERPROFILE%\\Desktop
 echo set WshShell = WScript.CreateObject("WScript.Shell") > CreateUndo.vbs
 echo set oShellLink = WshShell.CreateShortcut("%DESKTOP_DIR%\\Desativar_Quiosque.lnk") >> CreateUndo.vbs
 echo oShellLink.TargetPath = "cmd.exe" >> CreateUndo.vbs
-echo oShellLink.Arguments = "/c del ""%STARTUP_DIR%\\PontoFace_Kiosk.lnk"" & taskkill /F /IM chrome.exe & echo Quiosque Desativado! & pause" >> CreateUndo.vbs
+echo oShellLink.Arguments = "/c del \"%STARTUP_DIR%\\HoraFace_Quiosque.lnk\" & taskkill /F /IM chrome.exe & echo Quiosque Desativado! & pause" >> CreateUndo.vbs
 echo oShellLink.IconLocation = "shell32.dll,27" >> CreateUndo.vbs
 echo oShellLink.Save >> CreateUndo.vbs
 cscript //nologo CreateUndo.vbs
 del CreateUndo.vbs
 
 echo.
-echo Tudo Pronto! O PontoFace vai abrir em Tela Cheia agora.
+echo Tudo Pronto! O HoraFace vai abrir em Tela Cheia agora.
 echo Para fechar e fazer manutencao: 
 echo 1. Aperte ALT + F4 no teclado.
 echo 2. Na Area de Trabalho, use o icone "Desativar Quiosque" para ele nao voltar a abrir sozinho.
@@ -64,7 +64,7 @@ start "" "%CHROME_PATH%" --kiosk "${kioskUrl}"
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'Instalar_Quiosque_PontoFace.bat';
+        a.download = 'Instalar_Quiosque_HoraFace.bat';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

@@ -302,11 +302,11 @@ export default function KioskSettings() {
             <div className="rounded-lg border border-purple-900/40 bg-[#160d17] p-4 flex flex-col gap-4">
               <div className="flex justify-between items-center bg-purple-900/20 p-2 rounded border border-purple-800/50">
                 <Label className="text-purple-300 font-semibold flex items-center gap-2">
-                  <span className="text-purple-400">📍</span> Extensão WebApp: PontoFace Mobile (GPS)
+                  <span className="text-purple-400">📍</span> Extensão WebApp: HoraFace Mobile (GPS)
                 </Label>
               </div>
               <p className="text-xs text-purple-200/60">
-                Configure as coordenadas centrais da Sede. O PontoFace Mobile exige que o funcionário cruze esta Cerca Virtual (Geofencing) para destravar a Câmera Selfie.
+                Configure as coordenadas centrais da Sede. O HoraFace Mobile exige que o colaborador cruze esta Cerca Virtual (Geofencing) para destravar a Câmera de Reconhecimento Facial.
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -391,7 +391,7 @@ export default function KioskSettings() {
                         toast.error(`Falha no Banco de Dados: ${result.error?.message || "Recusado pelo Servidor"}`);
                         return;
                     }
-                    toast.success("Geolocalização Base de Ponto Mobile atualizada!");
+                    toast.success("Geolocalização Base do Aferidor Mobile atualizada!");
                   }}
                   className="h-8 text-xs bg-purple-600 hover:bg-purple-500 text-white px-5 transition-all w-full sm:w-auto"
                 >
@@ -406,7 +406,7 @@ export default function KioskSettings() {
                 value={kioskStore.message}
                 onChange={(e) => kioskStore.updateSettings({ message: e.target.value })}
                 className="mt-1 h-8 border-slate-800 bg-slate-900/50 text-sm focus-visible:ring-cyan-500"
-                placeholder="Toque na tela para abrir o relógio de ponto..."
+                placeholder="Toque na tela para abrir o Aferidor de Horas..."
               />
             </div>
           </div>

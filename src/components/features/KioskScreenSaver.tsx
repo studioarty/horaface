@@ -20,7 +20,7 @@ export default function KioskScreenSaver({ onWake, kioskId = 'default' }: KioskS
     idleTimeoutSec: 30,
     slideIntervalSec: 8,
     showClock: true,
-    message: 'Toque na tela para registrar seu ponto',
+    message: 'Toque na tela para registrar suas horas',
     minCheckoutMinutes: 15,
     newsTickerSpeed: 35,
     enableNewsTicker: true,
@@ -462,7 +462,7 @@ export default function KioskScreenSaver({ onWake, kioskId = 'default' }: KioskS
       onTouchStart={handleTouch}
       role="button"
       tabIndex={0}
-      aria-label="Toque para abrir o ponto eletrônico"
+      aria-label="Toque para abrir o Aferidor de Horas"
     >
       {/* ========================================================= */}
       {/* ZONE 1: PRIMARY PLAYLIST LAYER                            */}
@@ -494,7 +494,7 @@ export default function KioskScreenSaver({ onWake, kioskId = 'default' }: KioskS
               <ShieldCheck className="size-6 text-cyan-400" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-cyan-400" style={{ fontFamily: 'Rajdhani, sans-serif' }}>PontoFace</h1>
+              <h1 className="text-xl font-bold text-cyan-400" style={{ fontFamily: 'Rajdhani, sans-serif' }}>HoraFace</h1>
               <p className="font-mono text-[10px] uppercase tracking-widest text-white/30 truncate max-w-[200px]">Campanhas: {settings.campaigns.length}</p>
             </div>
           </div>

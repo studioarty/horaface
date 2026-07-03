@@ -126,7 +126,7 @@ export default function Kiosk() {
     idleTimeoutSec: 30,
     slideIntervalSec: 8,
     showClock: true,
-    message: 'Toque na tela para registrar seu ponto',
+    message: 'Toque na tela para registrar suas horas',
     minCheckoutMinutes: 15,
     newsTickerSpeed: 50,
     enableNewsTicker: true,
@@ -1045,7 +1045,7 @@ documento financeiro ou holerite oficial.
           </div>
           <div>
             <h1 className="font-bold text-xl leading-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300 drop-shadow-sm font-sans">
-              PontoFace UI
+              HoraFace UI
             </h1>
             <p className="text-[10px] uppercase tracking-widest text-emerald-500/60 font-mono font-bold">
               Quiosque: {kioskId}
@@ -1450,7 +1450,7 @@ function KioskSetup() {
         <div className="flex flex-col items-center text-center mb-2">
           <Monitor className="size-16 text-cyan-400 mb-4" />
           <h1 className="text-2xl font-bold text-white font-heading">Novo Quiosque</h1>
-          <p className="text-sm text-slate-400 mt-2">Configure este dispositivo para utilizá-lo como um terminal PontoFace.</p>
+          <p className="text-sm text-slate-400 mt-2">Configure este dispositivo para utilizá-lo como um terminal HoraFace.</p>
         </div>
         <div className="space-y-4">
           <div className="space-y-1.5">

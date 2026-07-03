@@ -170,7 +170,7 @@ export default function Sidebar() {
         >
           {NAV_ITEMS.filter((item) => {
             if (auth.user?.role !== 'super_admin' && (item.path === '/admin-quiosques' || item.path === '/equipe' || item.path === '/configuracoes' || item.path === '/docs')) return false;
-            if (auth.user?.role === 'viewer' && (item.path === '/prestadores' || item.path === '/turnos' || item.path === '/feriados' || item.path === '/ponto')) return false;
+            if (auth.user?.role === 'viewer' && (item.path === '/prestadores' || item.path === '/turnos' || item.path === '/feriados' || item.path === '/aferidor-de-horas')) return false;
             return true;
           }).map((item) => {
             const Icon = iconMap[item.icon];

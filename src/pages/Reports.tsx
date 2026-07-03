@@ -216,7 +216,7 @@ export default function Reports() {
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
-    XLSX.writeFile(wb, `PontoFace_${sheetName}_${dateRange.start}_ate_${dateRange.end}.xlsx`);
+    XLSX.writeFile(wb, `HoraFace_${sheetName}_${dateRange.start}_ate_${dateRange.end}.xlsx`);
   };
 
   const handleExportCSV = () => {
@@ -229,7 +229,7 @@ export default function Reports() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `PontoFace_${sheetName}_${dateRange.start}_ate_${dateRange.end}.csv`);
+    link.setAttribute('download', `HoraFace_${sheetName}_${dateRange.start}_ate_${dateRange.end}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -271,7 +271,7 @@ export default function Reports() {
         }
 
         const { sheetName } = getExportData();
-        pdf.save(`PontoFace_${sheetName}_${dateRange.start}_ate_${dateRange.end}.pdf`);
+        pdf.save(`HoraFace_${sheetName}_${dateRange.start}_ate_${dateRange.end}.pdf`);
         toast({ title: 'Sucesso', description: 'O Documento PDF com Gráficos 3D foi salvo na sua pasta Download.' });
       } catch (err) {
         console.error("PDF Export Err", err);
