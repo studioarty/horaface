@@ -28,6 +28,7 @@ const MobileKiosk = () => {
   const [activeRecord, setActiveRecord] = useState<any>(null);
   const [lastOpType, setLastOpType] = useState<'in' | 'out'>('in');
   const [errorMessage, setErrorMessage] = useState('');
+  const [capturedBiometricPhoto, setCapturedBiometricPhoto] = useState<string | undefined>(undefined);
 
   // GPS State (Running in background)
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -141,19 +142,21 @@ const MobileKiosk = () => {
     };
   }, [appState, modelsLoaded, providersList]);
 
-  // 4. Handle Match: busca registro ativo direto do BANCO (não da memória)
-  // Isso garante que entradas feitas por outros dispositivos (quiosque desktop) sejam detectadas
+  // 4. Handle Match: captura a foto ANTES de mudar o estado (enquanto a câmera ainda está ativa)
+  // Isso garante que o video element ainda está no DOM quando capturePhoto é chamado
   const handleMatchedGuy = async (guy: Provider) => {
+    // 📸 CAPTURA A FOTO AQUI — câmera ainda está ativa (appState ainda é 'ready')
+    const photo = captureCurrentFrame();
+    setCapturedBiometricPhoto(photo);
+
     setMatchedProvider(guy);
-    setAppState('confirm'); // Mostra a tela de confirmação imediatamente
+    setAppState('confirm'); // Só AGORA muda o estado (desmonta a câmera)
 
     try {
-      // Consulta o banco para saber se há entrada aberta (cross-device safe)
       const openRecord = await timeStore.fetchActiveRecordFromDB(guy.id);
       setActiveRecord(openRecord || null);
       setLastOpType(openRecord ? 'out' : 'in');
     } catch {
-      // Fallback: usa a memória local se o banco não responder
       const openRecord = timeStore.records.find(
         (r) => r.providerId === guy.id && !r.checkOut
       );
@@ -259,8 +262,8 @@ const MobileKiosk = () => {
 
     // Execute check-in ou check-out
     try {
-      // 📸 Capturar foto biométrica no momento da confirmação
-      const capturedPhoto = captureCurrentFrame();
+      // 📸 Usa a foto capturada no momento do reconhecimento facial (câmera ainda estava ativa)
+      const capturedPhoto = capturedBiometricPhoto;
 
       // 📍 Formatar coordenadas GPS (7 casas decimais)
       const locationStr = userCoords
@@ -315,6 +318,7 @@ const MobileKiosk = () => {
     setMatchedProvider(null);
     setActiveRecord(null);
     setErrorMessage('');
+    setCapturedBiometricPhoto(undefined);
     processingRef.current = false;
     setIsProcessing(false);
     setAppState('ready');
