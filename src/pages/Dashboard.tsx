@@ -19,7 +19,7 @@ export default function Dashboard() {
   const [liveRecords, setLiveRecords] = useState<TimeRecord[]>([]);
   const { toast } = useToast();
 
-  // Poll kiosks every 5s
+  // Poll kiosks every 2s
   useEffect(() => {
     const load = async () => {
       try {
@@ -32,11 +32,11 @@ export default function Dashboard() {
       } catch { }
     };
     load();
-    const iv = setInterval(load, 5000);
+    const iv = setInterval(load, 2000);
     return () => clearInterval(iv);
   }, []);
 
-  // Poll today's records from DB every 5s so kiosk check-ins appear in real-time
+  // Poll today's records from DB every 2s so kiosk check-ins appear in real-time
   useEffect(() => {
     const load = async () => {
       try {
@@ -45,15 +45,15 @@ export default function Dashboard() {
       } catch { }
     };
     load();
-    const iv = setInterval(load, 5000);
+    const iv = setInterval(load, 2000);
     return () => clearInterval(iv);
   }, []);
 
-  // Also reload the time store periodically so other components stay in sync
+  // Also reload the time store every 2s so other components stay in sync
   useEffect(() => {
     const iv = setInterval(() => {
       timeStore.reload();
-    }, 10000);
+    }, 2000);
     return () => clearInterval(iv);
   }, []);
 
