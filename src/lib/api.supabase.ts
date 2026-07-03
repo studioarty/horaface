@@ -456,11 +456,17 @@ export async function fetchActiveRecord(providerId: string): Promise<TimeRecord 
   if (!navigator.onLine) return getCachedActiveRecord(providerId);
 
   try {
+    // Só considera registros abertos das últimas 16h
+    // Isso evita que entradas antigas (esquecidas) sejam tratadas como ativas
+    // ao reescanear — especialmente importante para turnos da noite (cross-midnight)
+    const sixteenHoursAgo = new Date(Date.now() - 16 * 60 * 60 * 1000).toISOString();
+
     const { data, error } = await supabase
       .from("time_records")
       .select("*")
       .eq("provider_id", providerId)
       .is("check_out", null)
+      .gte("check_in", sixteenHoursAgo)
       .order("check_in", { ascending: false })
       .limit(1)
       .maybeSingle();
