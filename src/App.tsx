@@ -92,12 +92,19 @@ export default function App() {
       <BrowserRouter>
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          {/* Public routes */}
+          {/* Public routes - Quiosques */}
           <Route path="/quiosque" element={<Kiosk />} />
           <Route path="/quiosque-teste" element={<KioskTest />} />
+
+          {/* Public routes - Marcação de Horas (colaborador) */}
           <Route path="/marcar-horas" element={<MobileKiosk />} />
+          {/* Compatibilidade: links antigos /meu-ponto continuam funcionando automaticamente */}
+          <Route path="/meu-ponto" element={<Navigate to="/marcar-horas" replace />} />
           <Route path="/parceiro/marcar-horas" element={<Navigate to="/marcar-horas" replace />} />
+          <Route path="/parceiro/meu-ponto" element={<Navigate to="/marcar-horas" replace />} />
+
           <Route path="/login" element={<Login />} />
+
 
           {/* Provider PWA routes */}
           <Route path="/parceiro/login" element={<ProviderLogin />} />
