@@ -40,6 +40,7 @@ import {
   matchFace,
   capturePhoto,
 } from '@/lib/faceApi';
+import { greetCollaborator } from '@/lib/azureTTS';
 import { DETECTION_INTERVAL_MS } from '@/constants/config';
 import type { Provider, Shift, TimeRecord } from '@/types';
 import type { KioskSettings } from '@/lib/api';
@@ -761,52 +762,6 @@ documento financeiro ou holerite oficial.
     try { await start(); } catch { } finally { setCameraStarting(false); }
   }, [start]);
 
-  const playFallbackTTS = useCallback((fallbackText: string) => {
-    console.warn("[Audio] Acionando Kiosk TTS (Premium Voice Finder).");
-    const utterance = new SpeechSynthesisUtterance(fallbackText);
-    utterance.lang = 'pt-BR';
-    utterance.rate = 1.05; // Levemente mais rápido para fluidez natural
-    utterance.pitch = 1.1; // Levemente mais agudo para tom amigável
-
-    // Buscar vozes do sistema
-    const voices = window.speechSynthesis.getVoices();
-
-    // 1. Tentar forçar a voz Neural do Edge/Chrome (A mais humana)
-    const neuralVoice = voices.find(v => v.name.includes('Neural') && v.lang.includes('pt-BR'));
-    // 2. Se não tiver neural, tenta a do Google Cloud (Padrão Android/Chrome)
-    const googleVoice = voices.find(v => v.name.includes('Google') && v.lang.includes('pt-BR'));
-    // 3. Voz da Microsoft Maria (Windows)
-    const microsoftVoice = voices.find(v => v.name.includes('Maria') && v.lang.includes('pt-BR'));
-    // 4. Qualquer voz PT-BR local
-    const ptVoice = voices.find(v => v.lang.includes('pt-BR'));
-
-    utterance.voice = neuralVoice || googleVoice || microsoftVoice || ptVoice || null;
-
-    window.speechSynthesis.cancel(); // Para qualquer fala engasgada anterior
-    window.speechSynthesis.speak(utterance);
-  }, []);
-
-  const triggerAudio = useCallback((type: 'in' | 'out', providerName: string) => {
-    const preName = providerName.split(' ')[0];
-    let textToSpeak = '';
-
-    if (type === 'in') {
-      const hour = new Date().getHours();
-      let greeting = 'Bom dia';
-      if (hour >= 12 && hour < 18) { greeting = 'Boa tarde'; }
-      else if (hour >= 18) { greeting = 'Boa noite'; }
-      textToSpeak = `${greeting}, ${preName}. Entrada registrada com sucesso.`;
-    } else {
-      textToSpeak = `Até logo, ${preName}. Saída registrada com sucesso.`;
-    }
-
-    // Como os navegadores modernos (Chrome/Edge Mobile e Desktop) bloqueiam hotlinks do Google Translate TTS
-    // em tags <audio> por regras rígidas de CORS e COEP,  e não possuímos Backend Node, 
-    // a forma mais magistral, rápida e "Livre de Burocracia" de obter uma voz HUMANA é forçando a API WebSpeech Interna
-    // a usar os motores "Neural" ou "Google Network", invés do motor robô defasado do sistema operacional.
-    playFallbackTTS(textToSpeak);
-
-  }, [playFallbackTTS]);
 
   const handleCheckIn = async () => {
     if (!matchedProvider) return;
@@ -897,7 +852,7 @@ documento financeiro ou holerite oficial.
       // Delay so React state can render the ThermalReceipt div natively into the Hidden DOM
       // setTimeout(() => { window.print(); }, 250);
 
-      triggerAudio('in', matchedProvider.name);
+      greetCollaborator('in', matchedProvider.name);
       
       // V20: Forçar o Kiosk a fechar o perfil do usuário em tela 2.5s após o bip
       // Liberando a máquina imediatamente para o colega de fila atrás dele.
@@ -953,7 +908,7 @@ documento financeiro ou holerite oficial.
         });
         // setTimeout(() => { window.print(); }, 250);
 
-        triggerAudio('out', matchedProvider.name);
+        greetCollaborator('out', matchedProvider.name);
         
         // V20: Fechamento ágil.
         setTimeout(() => {
