@@ -7,7 +7,7 @@ import { fetchProviders, insertCheckIn, insertCheckOut } from '@/lib/api';
 import { fetchKioskSettings, fetchShifts } from '@/lib/api.supabase';
 import { useTimeStore } from '@/stores/useTimeStore';
 import { haversineDistance } from '@/lib/geoUtils';
-import { detectFace, loadModels, matchFace } from '@/lib/faceApi';
+import { detectFace, loadModels, matchFace, capturePhoto } from '@/lib/faceApi';
 
 const MobileKiosk = () => {
   const timeStore = useTimeStore();
@@ -243,29 +243,47 @@ const MobileKiosk = () => {
       }
     }
 
-    // Execute check-in or checkout
+    // Execute check-in ou check-out
     try {
+      // 📸 Capturar foto biométrica no momento da confirmação
+      let capturedPhoto: string | undefined = undefined;
+      if (webcamRef.current?.video && webcamRef.current.video.readyState === 4) {
+        capturedPhoto = capturePhoto(webcamRef.current.video);
+      }
+
+      // 📍 Formatar coordenadas GPS
+      const locationStr = userCoords
+        ? `${userCoords.lat.toFixed(7)},${userCoords.lng.toFixed(7)}`
+        : undefined;
+
       if (isCheckOut) {
-        const result = await insertCheckOut(activeRecord.id, activeRecord.checkIn, liveSettings?.minCheckoutMinutes || 15);
+        const result = await insertCheckOut(
+          activeRecord.id,
+          activeRecord.checkIn,
+          liveSettings?.minCheckoutMinutes || 15,
+          matchedProvider.id,
+          capturedPhoto,   // foto de saída
+          locationStr      // GPS de saída
+        );
         if (result.success) {
           setAppState('success');
-          toast.success("Saída marcada com sucesso!");
+          toast.success('Saída marcada com sucesso!');
         } else {
           setErrorMessage(result.message);
           setAppState('gps_error');
         }
       } else {
-        // Passa o nome do colaborador para ser salvo no banco
-        await insertCheckIn(matchedProvider.id, undefined, undefined, matchedProvider.name);
+        // Passa o nome do colaborador, foto e GPS para ser salvo no banco
+        await insertCheckIn(matchedProvider.id, capturedPhoto, locationStr, matchedProvider.name);
         setAppState('success');
-        toast.success("Entrada marcada com sucesso! Bom trabalho.");
+        toast.success('Entrada marcada com sucesso! Bom trabalho.');
       }
-      
+
       // Reload records to keep sync in memory
       await timeStore.loadRecords();
     } catch (err) {
       console.error(err);
-      setErrorMessage("Erro de comunicação com o servidor.");
+      setErrorMessage('Erro de comunicação com o servidor.');
       setAppState('gps_error');
     } finally {
       setIsProcessing(false);
