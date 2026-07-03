@@ -655,6 +655,7 @@ export interface KioskSettings {
   backupKey?: string;
   breakStartTime?: string;
   breakEndTime?: string;
+  ttsVoice?: string;
 }
 
 export async function fetchKioskSettings(): Promise<KioskSettings> {
@@ -683,6 +684,7 @@ export async function fetchKioskSettings(): Promise<KioskSettings> {
     backupKey: "",
     breakStartTime: "09:00",
     breakEndTime: "09:15",
+    ttsVoice: "pt-BR-ThalitaNeural",
   };
 
   if (!navigator.onLine) {
@@ -710,6 +712,7 @@ export async function fetchKioskSettings(): Promise<KioskSettings> {
     const autoCheckoutWarning = systemOptions.autoCheckoutWarningMinutes ?? 3;
     const breakStartTime = systemOptions.breakStartTime || "09:00";
     const breakEndTime = systemOptions.breakEndTime || "09:15";
+    const ttsVoice = systemOptions.ttsVoice || "pt-BR-ThalitaNeural";
 
     // Filtrar a configuração para não exibi-la como mídia no resto do app
     const filteredLibrary = safeLibrary.filter((item: any) => item && item.id !== "system_config" && item.id !== "backup_key_config");
@@ -737,7 +740,8 @@ export async function fetchKioskSettings(): Promise<KioskSettings> {
       autoCheckoutWarningMinutes: autoCheckoutWarning,
       backupKey: backupKey,
       breakStartTime: breakStartTime,
-      breakEndTime: breakEndTime
+      breakEndTime: breakEndTime,
+      ttsVoice: ttsVoice,
     };
 
     // Parse Automático de Múltiplos Locais (Armazenado na coluna 'message' sob o prefixo 'LOCATIONS:')
@@ -851,7 +855,8 @@ export async function updateKioskSettingsDB(patch: Partial<KioskSettings>): Prom
     patch.autoCheckoutToleranceMinutes !== undefined || 
     patch.autoCheckoutWarningMinutes !== undefined ||
     patch.breakStartTime !== undefined ||
-    patch.breakEndTime !== undefined
+    patch.breakEndTime !== undefined ||
+    patch.ttsVoice !== undefined
   ) {
     try {
       const { data: currentData } = await supabase
@@ -877,6 +882,7 @@ export async function updateKioskSettingsDB(patch: Partial<KioskSettings>): Prom
         autoCheckoutWarningMinutes: patch.autoCheckoutWarningMinutes !== undefined ? patch.autoCheckoutWarningMinutes : (currentOptions.autoCheckoutWarningMinutes ?? 3),
         breakStartTime: patch.breakStartTime !== undefined ? patch.breakStartTime : (currentOptions.breakStartTime || "09:00"),
         breakEndTime: patch.breakEndTime !== undefined ? patch.breakEndTime : (currentOptions.breakEndTime || "09:15"),
+        ttsVoice: patch.ttsVoice !== undefined ? patch.ttsVoice : (currentOptions.ttsVoice || "pt-BR-ThalitaNeural"),
       };
 
       // Remove a configuração antiga do array base

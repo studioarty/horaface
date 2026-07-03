@@ -68,13 +68,20 @@ export default function SettingsPage() {
     // Voice settings
     const STORAGE_KEY = 'horaface_tts_voice';
     const [selectedVoice, setSelectedVoice] = useState<string>(
-        () => localStorage.getItem(STORAGE_KEY) || 'pt-BR-ThalitaNeural'
+        () => store.ttsVoice || localStorage.getItem(STORAGE_KEY) || 'pt-BR-ThalitaNeural'
     );
     const [previewLoading, setPreviewLoading] = useState(false);
+    const [voiceSaving, setVoiceSaving] = useState(false);
 
-    const handleVoiceSelect = (voiceId: string) => {
+    const handleVoiceSelect = async (voiceId: string) => {
         setSelectedVoice(voiceId);
-        localStorage.setItem(STORAGE_KEY, voiceId);
+        localStorage.setItem(STORAGE_KEY, voiceId); // Resposta imediata local
+        setVoiceSaving(true);
+        try {
+            await store.updateSettings({ ttsVoice: voiceId }); // Salva no Supabase (sincroniza celular)
+        } finally {
+            setVoiceSaving(false);
+        }
     };
 
     const handleVoicePreview = async (voiceId: string) => {
@@ -747,7 +754,11 @@ export default function SettingsPage() {
                                     </div>
                                 ))}
                             </div>
-                            <p className="text-xs text-slate-600">✅ A voz é salva automaticamente ao clicar no card.</p>
+                            <p className="text-xs text-slate-600">
+                                {voiceSaving
+                                    ? '⏳ Salvando e sincronizando com todos os dispositivos...'
+                                    : '✅ A voz é salva automaticamente e sincronizada com o celular.'}
+                            </p>
                         </div>
 
                         <div className="pt-2">

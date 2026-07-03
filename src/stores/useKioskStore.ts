@@ -32,6 +32,7 @@ let state: KioskState = {
   autoCheckoutToleranceMinutes: 15,
   autoCheckoutWarningMinutes: 3,
   backupKey: "",
+  ttsVoice: "pt-BR-ThalitaNeural",
   loaded: false,
 };
 
@@ -128,7 +129,7 @@ async function deleteCampaign(id: string) {
 }
 
 async function updateSettings(
-  partial: Partial<Pick<KioskSettings, "idleTimeoutSec" | "slideIntervalSec" | "showClock" | "message" | "minCheckoutMinutes" | "newsTickerSpeed" | "enableNewsTicker" | "newsTickerUrl" | "rssLayout" | "rssSources" | "rssTargetKiosks" | "liteTargetKiosks" | "mobileLat" | "mobileLng" | "mobileRadius" | "workLocations" | "autoCheckoutToleranceMinutes" | "autoCheckoutWarningMinutes" | "backupKey">>,
+  partial: Partial<Pick<KioskSettings, "idleTimeoutSec" | "slideIntervalSec" | "showClock" | "message" | "minCheckoutMinutes" | "newsTickerSpeed" | "enableNewsTicker" | "newsTickerUrl" | "rssLayout" | "rssSources" | "rssTargetKiosks" | "liteTargetKiosks" | "mobileLat" | "mobileLng" | "mobileRadius" | "workLocations" | "autoCheckoutToleranceMinutes" | "autoCheckoutWarningMinutes" | "backupKey" | "ttsVoice">>,
 ) {
   state = { ...state, ...partial };
   emit();

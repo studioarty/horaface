@@ -4,13 +4,18 @@
  * Free tier: 500.000 chars/mês — muito acima do uso esperado
  */
 
+import { getKioskSnapshot } from '@/stores/useKioskStore';
+
 const AZURE_KEY    = import.meta.env.VITE_AZURE_SPEECH_KEY as string;
 const AZURE_REGION = (import.meta.env.VITE_AZURE_SPEECH_REGION as string) || 'brazilsouth';
 const DEFAULT_VOICE = 'pt-BR-ThalitaNeural';
 
-// Lê a voz selecionada no painel de Configurações (localStorage)
+// Lê a voz do KioskStore (sincronizado via Supabase — funciona em todos os dispositivos)
+// Fallback para localStorage para resposta imediata na UI
 const getVoice = () =>
-  localStorage.getItem('horaface_tts_voice') || DEFAULT_VOICE;
+  getKioskSnapshot().ttsVoice ||
+  localStorage.getItem('horaface_tts_voice') ||
+  DEFAULT_VOICE;
 
 
 // Cache em memória: texto → blob URL — evita chamadas repetidas à API
