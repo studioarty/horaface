@@ -4,7 +4,7 @@
 
 There are several ways of editing your application.
 
-**Use OnSpace**
+**HoraFace**
 
 Simply visit the [OnSpace Project]() and start prompting.
 
