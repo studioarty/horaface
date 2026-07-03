@@ -1,4 +1,4 @@
-export const APP_NAME = 'PontoFace';
+export const APP_NAME = 'HoraFace';
 
 export const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.14/model';
 export const FACE_MATCH_THRESHOLD = 0.52;

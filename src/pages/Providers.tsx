@@ -17,8 +17,6 @@ import ProviderCard from '@/components/features/ProviderCard';
 import FaceCapture from '@/components/features/FaceCapture';
 import type { Provider } from '@/types';
 
-type ShiftMode = 'morning' | 'afternoon' | 'both' | 'custom';
-
 export default function Providers() {
   const { toast } = useToast();
   const providerStore = useProviderStore();
@@ -45,35 +43,14 @@ export default function Providers() {
   const [chatAllowedProviders, setChatAllowedProviders] = useState<string[]>([]);
   const [chatSearchQuery, setChatSearchQuery] = useState('');
 
-  const [shiftMode, setShiftMode] = useState<ShiftMode | ''>('');
-  const [customShiftId, setCustomShiftId] = useState('');
+  const [selectedShiftIds, setSelectedShiftIds] = useState<string[]>([]);
   const [capturedPhoto, setCapturedPhoto] = useState('');
   const [capturedDescriptor, setCapturedDescriptor] = useState<number[]>([]);
   const [capturedDescriptors, setCapturedDescriptors] = useState<number[][]>([]);
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
 
-  // Find morning and afternoon shifts
-  const morningShift = shiftStore.shifts.find(
-    (s) => s.name.toLowerCase().includes('manhã') || s.id === 'shift-morning',
-  );
-  const afternoonShift = shiftStore.shifts.find(
-    (s) => s.name.toLowerCase().includes('tarde') || s.id === 'shift-afternoon',
-  );
-  const otherShifts = shiftStore.shifts.filter(
-    (s) => s.id !== morningShift?.id && s.id !== afternoonShift?.id,
-  );
-
-  const getSelectedShiftIds = (): string[] => {
-    if (shiftMode === 'morning' && morningShift) return [morningShift.id];
-    if (shiftMode === 'afternoon' && afternoonShift) return [afternoonShift.id];
-    if (shiftMode === 'both' && morningShift && afternoonShift) return [morningShift.id, afternoonShift.id];
-    if (shiftMode === 'custom' && customShiftId) return [customShiftId];
-    return [];
-  };
-
   useEffect(() => {
-    const ids = getSelectedShiftIds();
-    const selected = ids.map((id) => shiftStore.shifts.find((s) => s.id === id)).filter(Boolean) as import('@/types').Shift[];
+    const selected = selectedShiftIds.map((id) => shiftStore.shifts.find((s) => s.id === id)).filter(Boolean) as import('@/types').Shift[];
     
     if (selected.length > 0) {
       let totalMinutes = 0;
@@ -96,7 +73,7 @@ export default function Providers() {
         setFormData((prev) => ({ ...prev, hourlyRate: (v / calculatedMonthHours).toFixed(2) }));
       }
     }
-  }, [shiftMode, customShiftId]);
+  }, [selectedShiftIds, refValue]);
 
   const resetForm = () => {
     setFormData({ name: '', role: '', company: '', hourlyRate: '', pin: '' });
@@ -105,8 +82,7 @@ export default function Providers() {
     setEndActivity('');
     setRefValue('');
     setRefHours('187');
-    setShiftMode('');
-    setCustomShiftId('');
+    setSelectedShiftIds([]);
     setCapturedPhoto('');
     setCapturedDescriptor([]);
     setCapturedDescriptors([]);
@@ -158,32 +134,16 @@ export default function Providers() {
     setChatSearchQuery('');
     
     setRefValue('');
-    // refHours will auto-calculate based on shift selection via useEffect
     
     const ids = provider.shiftIds && provider.shiftIds.length > 0 ? provider.shiftIds : provider.shiftId ? [provider.shiftId] : [];
-    if (ids.length === 2 && morningShift && afternoonShift && ids.includes(morningShift.id) && ids.includes(afternoonShift.id)) {
-      setShiftMode('both');
-      setCustomShiftId('');
-    } else if (ids.length === 1 && ids[0] === morningShift?.id) {
-      setShiftMode('morning');
-      setCustomShiftId('');
-    } else if (ids.length === 1 && ids[0] === afternoonShift?.id) {
-      setShiftMode('afternoon');
-      setCustomShiftId('');
-    } else if (ids.length > 0) {
-      setShiftMode('custom');
-      setCustomShiftId(ids[0]);
-    } else {
-      setShiftMode('');
-      setCustomShiftId('');
-    }
+    setSelectedShiftIds(ids);
 
     setEditingProviderId(provider.id);
     setShowForm(true);
   };
 
   const handleSubmit = async () => {
-    const selectedIds = getSelectedShiftIds();
+    const selectedIds = selectedShiftIds;
 
     if (!formData.name || selectedIds.length === 0) {
       toast({
@@ -503,125 +463,52 @@ export default function Providers() {
 
               {/* Shift Selection */}
               <div>
-                <Label className="text-text-secondary">Turno *</Label>
+                <Label className="text-text-secondary">Turnos Permitidos *</Label>
                 <p className="mt-0.5 text-[11px] text-slate-500">
-                  Selecione o período de trabalho do prestador
+                  Selecione um ou mais turnos nos quais o prestador poderá bater ponto (todos os turnos selecionados terão o mesmo formato de ícone de cor)
                 </p>
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  {/* Só Manhã */}
-                  {morningShift && (
-                    <button
-                      type="button"
-                      onClick={() => { setShiftMode('morning'); setCustomShiftId(''); }}
-                      className={`flex flex-col items-center gap-1.5 rounded-xl border-2 px-2 py-3 text-center transition-all ${shiftMode === 'morning'
-                          ? 'border-cyan-400 bg-cyan-400/10 shadow-[0_0_15px_rgba(34,211,238,0.15)]'
-                          : 'border-slate-700 bg-slate-800/30 hover:border-slate-600'
+                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-slate-700/50 rounded-lg p-2 bg-slate-900/30 custom-scrollbar">
+                  {shiftStore.shifts.map((s) => {
+                    const isSelected = selectedShiftIds.includes(s.id);
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            if (selectedShiftIds.length > 1) {
+                              setSelectedShiftIds(selectedShiftIds.filter(id => id !== s.id));
+                            } else {
+                              toast({ variant: 'destructive', title: 'Aviso', description: 'O prestador precisa ter pelo menos um turno.' });
+                            }
+                          } else {
+                            setSelectedShiftIds([...selectedShiftIds, s.id]);
+                          }
+                        }}
+                        className={`flex items-center justify-between rounded-lg border-2 p-2.5 text-left transition-all ${
+                          isSelected
+                            ? 'border-cyan-400 bg-cyan-400/10 shadow-[0_0_15px_rgba(34,211,238,0.1)]'
+                            : 'border-slate-700 bg-slate-800/30 hover:border-slate-600'
                         }`}
-                    >
-                      <span className="text-xl">🌅</span>
-                      <span className={`text-xs font-bold ${shiftMode === 'morning' ? 'text-cyan-400' : 'text-slate-300'}`}>
-                        Só Manhã
-                      </span>
-                      <span className="text-[10px] text-slate-500 leading-tight">
-                        {morningShift.startTime}–{morningShift.endTime}
-                      </span>
-                    </button>
-                  )}
-                  {/* Só Tarde */}
-                  {afternoonShift && (
-                    <button
-                      type="button"
-                      onClick={() => { setShiftMode('afternoon'); setCustomShiftId(''); }}
-                      className={`flex flex-col items-center gap-1.5 rounded-xl border-2 px-2 py-3 text-center transition-all ${shiftMode === 'afternoon'
-                          ? 'border-emerald-400 bg-emerald-400/10 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
-                          : 'border-slate-700 bg-slate-800/30 hover:border-slate-600'
-                        }`}
-                    >
-                      <span className="text-xl">🌇</span>
-                      <span className={`text-xs font-bold ${shiftMode === 'afternoon' ? 'text-emerald-400' : 'text-slate-300'}`}>
-                        Só Tarde
-                      </span>
-                      <span className="text-[10px] text-slate-500 leading-tight">
-                        {afternoonShift.startTime}–{afternoonShift.endTime}
-                      </span>
-                    </button>
-                  )}
-                  {/* Manhã e Tarde */}
-                  {morningShift && afternoonShift && (
-                    <button
-                      type="button"
-                      onClick={() => { setShiftMode('both'); setCustomShiftId(''); }}
-                      className={`flex flex-col items-center gap-1.5 rounded-xl border-2 px-2 py-3 text-center transition-all ${shiftMode === 'both'
-                          ? 'border-amber-400 bg-amber-400/10 shadow-[0_0_15px_rgba(245,158,11,0.15)]'
-                          : 'border-slate-700 bg-slate-800/30 hover:border-slate-600'
-                        }`}
-                    >
-                      <span className="text-xl">☀️</span>
-                      <span className={`text-xs font-bold ${shiftMode === 'both' ? 'text-amber-400' : 'text-slate-300'}`}>
-                        Manhã + Tarde
-                      </span>
-                      <span className="text-[10px] text-slate-500 leading-tight">
-                        {morningShift.startTime}–{afternoonShift.endTime}
-                      </span>
-                    </button>
-                  )}
-                </div>
-
-                {/* Selected shift summary */}
-                {shiftMode && shiftMode !== 'custom' && (
-                  <div className="mt-2 rounded-lg border border-slate-700/50 bg-slate-800/20 px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-400">Turnos selecionados:</span>
-                      <div className="flex gap-1.5">
-                        {getSelectedShiftIds().map((id) => {
-                          const s = shiftStore.shifts.find((sh) => sh.id === id);
-                          if (!s) return null;
-                          return (
-                            <span
-                              key={id}
-                              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                              style={{ color: s.color, background: `${s.color}15` }}
-                            >
-                              <span className="size-1.5 rounded-full" style={{ background: s.color }} />
+                      >
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <span className="size-3.5 rounded-full border border-white/20 flex-shrink-0" style={{ background: s.color }} />
+                          <div className="overflow-hidden">
+                            <span className={`text-xs font-bold block truncate ${isSelected ? 'text-cyan-400' : 'text-slate-300'}`}>
                               {s.name}
                             </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    {shiftMode === 'both' && morningShift && afternoonShift && (
-                      <p className="mt-1 text-[10px] text-slate-500">
-                        Período completo: {morningShift.startTime} às {afternoonShift.endTime} (dois turnos)
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Other shifts */}
-                {otherShifts.length > 0 && (
-                  <div className="mt-3">
-                    <p className="text-[11px] text-slate-500 mb-1.5">Outros turnos disponíveis:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {otherShifts.map((s) => (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onClick={() => { setShiftMode('custom'); setCustomShiftId(s.id); }}
-                          className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-all ${shiftMode === 'custom' && customShiftId === s.id
-                              ? 'border-white/30 bg-white/5'
-                              : 'border-slate-700 bg-slate-800/20 hover:border-slate-600'
-                            }`}
-                        >
-                          <span className="size-2 rounded-full" style={{ background: s.color }} />
-                          <span className={shiftMode === 'custom' && customShiftId === s.id ? 'text-white font-medium' : 'text-slate-400'}>
-                            {s.name}
-                          </span>
-                          <span className="text-slate-600">{s.startTime}–{s.endTime}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              {s.startTime}–{s.endTime}
+                            </span>
+                          </div>
+                        </div>
+                        <div className={`size-4 rounded border flex items-center justify-center shrink-0 ${isSelected ? 'border-cyan-400 bg-cyan-400' : 'border-slate-600 bg-black/45'}`}>
+                          {isSelected && <span className="text-[9px] font-bold text-black">✓</span>}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Chat Permissions Section */}

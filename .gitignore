@@ -22,3 +22,31 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Project-specific binary and temp exclusions
+*.zip
+*.exe
+*.mp3
+*.pdf
+*.xlsx
+*.tar
+*.img
+.agent/
+scratch/
+.env
+.env.production
+.env.local
+Nova pasta*/
+temp_deploy_extract/
+IgrejaKioskApp/
+Igreja_Kiosk_Windows.exe
+yooess-nvr/
+yooess-server/
+yooess_app/
+kiosk-os/
+dist.zip
+backend/
+ponto-cloud/
+*.mjs
+*.js.map
+*.css.map

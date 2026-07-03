@@ -1,0 +1,150 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Light Theme (Default) */
+  :root,
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 91% 60%;
+    --radius: 0.5rem;
+  }
+
+  /* Dark Theme */
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 15%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 15%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 32% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 32% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 32% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 217 32% 22%;
+    --input: 217 32% 22%;
+    --ring: 217 91% 60%;
+  }
+
+  /* Ocean Theme */
+  .ocean {
+    --background: 200 25% 97%;
+    --foreground: 200 40% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 200 40% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 200 40% 10%;
+    --primary: 191 91% 40%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 190 40% 94%;
+    --secondary-foreground: 200 40% 10%;
+    --muted: 190 40% 94%;
+    --muted-foreground: 200 20% 40%;
+    --accent: 191 91% 50%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 190 30% 88%;
+    --input: 190 30% 88%;
+    --ring: 191 91% 40%;
+  }
+
+  /* Forest Theme */
+  .forest {
+    --background: 145 25% 97%;
+    --foreground: 145 40% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 145 40% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 145 40% 10%;
+    --primary: 145 65% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 145 35% 94%;
+    --secondary-foreground: 145 40% 10%;
+    --muted: 145 35% 94%;
+    --muted-foreground: 145 20% 40%;
+    --accent: 145 65% 55%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 145 30% 88%;
+    --input: 145 30% 88%;
+    --ring: 145 65% 45%;
+  }
+
+  /* Sunset Theme */
+  .sunset {
+    --background: 30 30% 97%;
+    --foreground: 30 40% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 30 40% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 30 40% 10%;
+    --primary: 25 95% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 30 40% 94%;
+    --secondary-foreground: 30 40% 10%;
+    --muted: 30 40% 94%;
+    --muted-foreground: 30 20% 40%;
+    --accent: 280 60% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 30% 88%;
+    --input: 30 30% 88%;
+    --ring: 25 95% 53%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-secondary;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/30 rounded-md;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/50;
+}

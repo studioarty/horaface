@@ -817,6 +817,58 @@ documento financeiro ou holerite oficial.
       setProcessing(false);
       return;
     }
+    // Validate shift hours
+    const now = new Date();
+    const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    
+    const hasOpenShift = providerShifts.some((s) => {
+      if (!s || !s.startTime || !s.endTime) return false;
+      
+      const [sh, sm] = s.startTime.split(':').map(Number);
+      const [eh, em] = s.endTime.split(':').map(Number);
+      const [ch, cm] = currentTimeStr.split(':').map(Number);
+      
+      const currentMin = ch * 60 + cm;
+      let startMin = sh * 60 + sm - 60; // 60 minutes tolerance
+      let endMin = eh * 60 + em;
+      
+      if (startMin < 0) startMin += 24 * 60;
+      
+      if (startMin <= endMin) {
+        return currentMin >= startMin && currentMin <= endMin;
+      } else {
+        return currentMin >= startMin || currentMin <= endMin;
+      }
+    });
+
+    if (providerShifts.length > 0 && !hasOpenShift) {
+      const allowedShiftsText = providerShifts
+        .map((s) => `${s.name} (${s.startTime}–${s.endTime})`)
+        .join(', ');
+      
+      setFeedback({
+        type: 'warning',
+        title: 'Fora do Horário do Turno',
+        message: `Não há nenhum turno aberto para você no momento. Turnos permitidos: ${allowedShiftsText}`
+      });
+      toast({
+        variant: 'destructive',
+        title: 'Entrada bloqueada',
+        description: 'Você está fora do horário dos seus turnos permitidos.'
+      });
+      setProcessing(false);
+      
+      // Auto close/reset profile after warning so next person can scan
+      setTimeout(() => {
+        setMatchedProvider(null);
+        setActiveRecord(null);
+        setScanStatus('scanning');
+        setIsIdle(true);
+      }, 5000);
+
+      return;
+    }
+
     try {
       let photoBase64 = "";
       if (videoRef.current && isActive) {

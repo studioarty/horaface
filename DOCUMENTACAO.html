@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PontoFace - Documentação Oficial</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --sidebar-bg: #1e293b;
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-color: #3b82f6;
+            --accent-hover: #60a5fa;
+            --border-color: #334155;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Sidebar menu */
+        nav.sidebar {
+            width: 300px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .sidebar h2 {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .menu-list {
+            list-style: none;
+        }
+
+        .menu-list li {
+            margin-bottom: 1rem;
+        }
+
+        .menu-list a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 1rem;
+            transition: color 0.2s, padding-left 0.2s;
+            display: block;
+        }
+
+        .menu-list a:hover {
+            color: var(--accent-hover);
+            padding-left: 5px;
+        }
+
+        /* Main content */
+        main.content {
+            margin-left: 300px;
+            padding: 4rem;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 0.5rem;
+        }
+
+        h2.section-title {
+            font-size: 1.8rem;
+            margin-top: 3rem;
+            margin-bottom: 1rem;
+            color: var(--accent-color);
+            scroll-margin-top: 2rem;
+        }
+
+        h3 {
+            font-size: 1.3rem;
+            margin-top: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        p {
+            margin-bottom: 1rem;
+            color: var(--text-muted);
+        }
+
+        ul {
+            margin-bottom: 1.5rem;
+            padding-left: 1.5rem;
+        }
+        
+        li {
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+        }
+
+        strong {
+            color: #e2e8f0;
+        }
+
+        pre {
+            background-color: #020617;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        code {
+            font-family: 'Courier New', Courier, monospace;
+            color: #34d399;
+        }
+        
+        .card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid var(--border-color);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .highlight {
+            color: #fca5a5;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="sidebar">
+        <h2>📘 Menu Interativo</h2>
+        <ul class="menu-list">
+            <li><a href="#overview">1. Visão Geral do Sistema</a></li>
+            <li><a href="#features">2. Funcionalidades Principais</a></li>
+            <li><a href="#install-local">3. Instalação: Servidor Próprio</a></li>
+            <li><a href="#install-web">4. Instalação: Hospedagem Web</a></li>
+            <li><a href="#backup">5. Backup Seguro</a></li>
+        </ul>
+    </nav>
+
+    <main class="content">
+        <h1>PontoFace - Documentação Oficial</h1>
+        <p>Bem-vindo à documentação completa do sistema <strong>PontoFace</strong>. Navegue pelas seções utilizando o menu lateral.</p>
+
+        <section id="overview">
+            <h2 class="section-title">1. Visão Geral do Sistema</h2>
+            <p>O <strong>PontoFace</strong> é um ecossistema avançado de controle de ponto e gestão de presença. Ele utiliza <strong>Reconhecimento Facial em Tempo Real</strong> (via <code>face-api.js</code>) para marcação biométrica precisa e sem toque. Além disso, conta com recursos inovadores de <strong>Digital Signage (Mídia Indoor)</strong> que transformam o Totem em um mural de anúncios corporativos de alto impacto visual (Cyberpunk Glassmorphism).</p>
+        </section>
+
+        <section id="features">
+            <h2 class="section-title">2. Funcionalidades Principais</h2>
+            <ul>
+                <li><strong>👤 Biometria Local:</strong> Match biométrico ultra-rápido utilizando arrays locais (Float32Array) sem a necessidade de APIs pagas, operando até mesmo offline ou em redes restritas.</li>
+                <li><strong>📺 Digital Signage 3D/RSS:</strong> Integração com feeds de notícias automáticos e modelos de transição de vídeos em background quando o Kiosk não está sendo usado.</li>
+                <li><strong>🗣️ IA de Voz (TTS):</strong> Integração com Gemini 3.1 Pro para gerar MP3 de áudio em tempo real com orientações de voz ("Ponto Registrado com Sucesso").</li>
+                <li><strong>🔄 Sincronização Hot-Polling:</strong> Sincroniza dados assincronamente (até 50MB) com alta resiliência para não gerar timeouts de rede entre Kiosk e Servidor Central.</li>
+                <li><strong>📊 Relatórios XLSX e Extratos:</strong> Geração completa em PDF e planilhas usando bibliotecas corporativas, formatados com layout contábil.</li>
+                <li><strong>🗺️ GPS Mobile:</strong> Cerca geográfica (Geofencing) para permitir pontos apenas se o funcionário estiver num raio de distância autorizado.</li>
+                <li><strong>🛡️ Segurança Anti-Escape:</strong> O software Kiosk (em Windows ou React Web) impede que funcionários saiam da tela sem a senha (PIN) de administradores.</li>
+            </ul>
+        </section>
+
+        <section id="install-local">
+            <h2 class="section-title">3. Instalação: Servidor Próprio (Local/VPS)</h2>
+            <p>Siga os passos abaixo para inicializar o sistema PontoFace no seu próprio servidor, seja ele Windows para rodar local na empresa, ou Ubuntu em VPS remota.</p>
+            
+            <h3>Backend (API Node.js)</h3>
+            <pre><code>cd backend
+npm install
+npx prisma db push  // (Sincroniza Banco SQLite)
+npm run start       // (Inicia na porta 3000)</code></pre>
+
+            <h3>Frontend (React/Vite)</h3>
+            <p>Volte para a pasta raiz, altere a variável <code>VITE_API_URL</code> no arquivo <code>.env</code> com o IP do seu Servidor Local (ex: <code>http://192.168.0.10:3000</code>)</p>
+            <pre><code>npm install
+npm run build      // (Gera a versão compilada estática)</code></pre>
+            <p>Pegue os arquivos compilados da pasta raiz <code>/dist</code> e sirva-os com um software auxiliar, como NGINX ou um simples "serve".</p>
+        </section>
+
+        <section id="install-web">
+            <h2 class="section-title">4. Instalação: Hospedagem (Ex: Hostinger)</h2>
+            <p>Para instalação em CPanel/hPanel na Hostinger ou HostGator (onde o acesso a terminal é limitado).</p>
+            <ul>
+                <li><strong>Criação de App Node.js:</strong> No painel da hospedagem (ex: Ferramentas -> App Node.js), aponte para a pasta do seu backend. Escolha o arquivo de inicialização <code>server.js</code> e clique no botão para "Instalar NPM" provido pelo próprio painel.</li>
+                <li><strong>Configurando Frontend:</strong> Localmente, edite o arquivo <code>.env</code> e insira sua URL pública no VITE_API_URL (<code>https://api.seudominio.com.br</code>). Em seguida, rode <code>npm run build</code>.</li>
+                <li><strong>Upload Estático:</strong> Pegue todo o conteúdo da pasta remanescente <code>/dist</code> e suba via Gerenciador de Arquivos para o seu <code>public_html</code> do domínio principal (<code>https://seudominio.com.br</code>).</li>
+                <li><strong>Atenção às Rotas (htaccess):</strong> Como a aplicação é uma Single Page Application, na pasta public_html adicione o bloco abaixo no <code>.htaccess</code>:</li>
+            </ul>
+<pre><code>&lt;IfModule mod_rewrite.c&gt;
+  RewriteEngine On
+  RewriteBase /
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+&lt;/IfModule&gt;</code></pre>
+        </section>
+
+        <section id="backup">
+            <h2 class="section-title">5. Backup Seguro</h2>
+            <div class="card">
+                <p>O <strong>Código Fonte Completo</strong> foi gerado e zipado da cópia mais recente e pura de desenvolvimento do GitHub (Branch Head). Pastas de ambiente de desenvolvimento como <code>node_modules</code> ou <code>.git</code> foram inteligentemente filtradas para reduzir espaço.</p>
+                <p><span class="highlight">O Arquivo Atualizado Encontra-se em:</span></p>
+                <h3>👉 <code>PontoFace_Backup_Seguro.zip</code></h3>
+                <p>Salve este arquivo permanentemente no seu Google Drive, Pendrive ou Serviço de Nuvem de sua confiança.</p>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // Smooth scrolling for sidebar links
+        document.querySelectorAll('.menu-list a').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+</html>

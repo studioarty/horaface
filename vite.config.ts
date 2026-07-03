@@ -16,9 +16,13 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'pwa-192x192.png', 'pwa-512x512.png'],
+      workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+      },
       manifest: {
-        name: 'PontoFace',
-        short_name: 'PontoFace',
+        name: 'HoraFace',
+        short_name: 'HoraFace',
         description: 'Controle de Horas com Reconhecimento Facial',
         start_url: '/meu-ponto',
         scope: '/',
