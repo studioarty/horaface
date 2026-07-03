@@ -21,7 +21,6 @@ const Holidays = lazy(() => import("@/pages/Holidays"));
 const Settings = lazy(() => import("@/pages/Settings"));
 const AdminsList = lazy(() => import("@/pages/AdminsList"));
 const MobileKiosk = lazy(() => import("@/pages/MobileKiosk"));
-const HoraKiosk = lazy(() => import("@/pages/HoraKiosk"));
 
 // === Provider App ===
 const ProviderLogin = lazy(() => import("@/pages/ProviderApp/ProviderLogin"));
@@ -97,7 +96,6 @@ export default function App() {
           <Route path="/quiosque" element={<Kiosk />} />
           <Route path="/quiosque-teste" element={<KioskTest />} />
           <Route path="/meu-ponto" element={<MobileKiosk />} />
-          <Route path="/hora-ponto" element={<HoraKiosk />} />
           <Route path="/parceiro/meu-ponto" element={<Navigate to="/meu-ponto" replace />} />
           <Route path="/login" element={<Login />} />
 
