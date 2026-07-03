@@ -6,7 +6,12 @@
 
 const AZURE_KEY    = import.meta.env.VITE_AZURE_SPEECH_KEY as string;
 const AZURE_REGION = (import.meta.env.VITE_AZURE_SPEECH_REGION as string) || 'brazilsouth';
-const AZURE_VOICE  = 'pt-BR-ThalitaNeural';
+const DEFAULT_VOICE = 'pt-BR-ThalitaNeural';
+
+// Lê a voz selecionada no painel de Configurações (localStorage)
+const getVoice = () =>
+  localStorage.getItem('horaface_tts_voice') || DEFAULT_VOICE;
+
 
 // Cache em memória: texto → blob URL — evita chamadas repetidas à API
 const audioCache = new Map<string, string>();
@@ -18,13 +23,15 @@ const audioCache = new Map<string, string>();
  */
 export async function speakAzure(text: string): Promise<void> {
   try {
-    let audioUrl = audioCache.get(text);
+    const voice = getVoice();
+    const cacheKey = `${voice}::${text}`;
+    let audioUrl = audioCache.get(cacheKey);
 
     if (!audioUrl) {
       // Não está em cache — chama a API
       const ssml = `
         <speak version='1.0' xml:lang='pt-BR'>
-          <voice xml:lang='pt-BR' name='${AZURE_VOICE}'>
+          <voice xml:lang='pt-BR' name='${voice}'>
             <prosody rate="0%" pitch="0%">
               ${text}
             </prosody>
@@ -48,8 +55,8 @@ export async function speakAzure(text: string): Promise<void> {
 
       const blob = await res.blob();
       audioUrl = URL.createObjectURL(blob);
-      audioCache.set(text, audioUrl); // Salva no cache
-      console.log(`[TTS] Gerado e cacheado: "${text}"`);
+      audioCache.set(cacheKey, audioUrl);
+      console.log(`[TTS] Gerado e cacheado [${voice}]: "${text}"`);
     } else {
       console.log(`[TTS] Tocando do cache: "${text}"`);
     }

@@ -1,11 +1,24 @@
 import { useState, useEffect } from 'react';
-import { Settings, Save, Clock, Compass, MapPin, Trash2, Edit2, Plus, X, Shield, Download, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { Settings, Save, Clock, Compass, MapPin, Trash2, Edit2, Plus, X, Shield, Download, RefreshCw, Eye, EyeOff, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useKioskStore } from '@/stores/useKioskStore';
 import { WorkLocation, restoreFromHostingerBackup } from '@/lib/api.supabase';
+import { speakAzure } from '@/lib/azureTTS';
+
+const VOICE_OPTIONS = [
+  { id: 'pt-BR-ThalitaNeural',    label: 'Thalita',    desc: 'Jovem, informal',      gender: '👩' },
+  { id: 'pt-BR-FranciscaNeural', label: 'Francisca',  desc: 'Natural, calorosa',    gender: '👩' },
+  { id: 'pt-BR-BrendaNeural',    label: 'Brenda',     desc: 'Profissional, clara',   gender: '👩' },
+  { id: 'pt-BR-AntonioNeural',   label: 'Antonio',    desc: 'Grave, formal',         gender: '👨' },
+  { id: 'pt-BR-DonatoNeural',    label: 'Donato',     desc: 'Natural, amigável',    gender: '👨' },
+  { id: 'pt-BR-FabioNeural',     label: 'Fabio',      desc: 'Jovem, descontraído',  gender: '👨' },
+  { id: 'pt-BR-HumbertoNeural',  label: 'Humberto',   desc: 'Maduro, autoridade',   gender: '👨' },
+  { id: 'pt-BR-JulioNeural',     label: 'Julio',      desc: 'Animado, expressivo',  gender: '👨' },
+  { id: 'pt-BR-NicolauNeural',   label: 'Nicolau',    desc: 'Suave, profissional',  gender: '👨' },
+] as const;
 
 function add10Minutes(timeStr: string): string {
     if (!timeStr || !timeStr.includes(':')) return "09:10";
@@ -51,6 +64,36 @@ export default function SettingsPage() {
     const [isSavingKey, setIsSavingKey] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
     const [isRestoring, setIsRestoring] = useState(false);
+
+    // Voice settings
+    const STORAGE_KEY = 'horaface_tts_voice';
+    const [selectedVoice, setSelectedVoice] = useState<string>(
+        () => localStorage.getItem(STORAGE_KEY) || 'pt-BR-ThalitaNeural'
+    );
+    const [previewLoading, setPreviewLoading] = useState(false);
+
+    const handleVoiceSelect = (voiceId: string) => {
+        setSelectedVoice(voiceId);
+        localStorage.setItem(STORAGE_KEY, voiceId);
+    };
+
+    const handleVoicePreview = async (voiceId: string) => {
+        setPreviewLoading(true);
+        // Temporariamente sobrescreve para ouvir a voz selecionada
+        const prev = localStorage.getItem(STORAGE_KEY);
+        localStorage.setItem(STORAGE_KEY, voiceId);
+        try {
+            await new Promise<void>((resolve) => {
+                const utterance = `Olá! Eu sou a voz do HoraFace.`;
+                speakAzure(utterance).finally(() => resolve());
+                setTimeout(resolve, 4000);
+            });
+        } finally {
+            // Restaura para a selecionada
+            localStorage.setItem(STORAGE_KEY, selectedVoice);
+            setPreviewLoading(false);
+        }
+    };
 
     // Form state
     const [locName, setLocName] = useState('');
@@ -657,6 +700,54 @@ export default function SettingsPage() {
                                     </Button>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* ===== VOZ DO SISTEMA ===== */}
+                        <div className="space-y-4 p-5 rounded-xl border border-white/5 bg-white/[0.02]">
+                            <div className="flex items-center gap-2">
+                                <div className="size-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
+                                    <Volume2 className="size-4 text-violet-400" />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-semibold text-slate-200">Voz do Sistema</h3>
+                                    <p className="text-xs text-slate-500">Voz Azure Neural falada ao registrar entrada/saída</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                {VOICE_OPTIONS.map((v) => (
+                                    <div
+                                        key={v.id}
+                                        onClick={() => handleVoiceSelect(v.id)}
+                                        className={`relative flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                                            selectedVoice === v.id
+                                                ? 'border-violet-500/60 bg-violet-500/10 shadow-[0_0_12px_rgba(139,92,246,0.15)]'
+                                                : 'border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.04]'
+                                        }`}
+                                    >
+                                        <span className="text-2xl">{v.gender}</span>
+                                        <div className="flex-1 min-w-0">
+                                            <p className={`text-sm font-semibold truncate ${
+                                                selectedVoice === v.id ? 'text-violet-300' : 'text-slate-200'
+                                            }`}>{v.label}</p>
+                                            <p className="text-xs text-slate-500 truncate">{v.desc}</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); handleVoicePreview(v.id); }}
+                                            disabled={previewLoading}
+                                            title="Ouvir prévia"
+                                            className="shrink-0 size-7 flex items-center justify-center rounded-md bg-white/5 hover:bg-violet-500/20 text-slate-400 hover:text-violet-300 transition-colors disabled:opacity-40"
+                                        >
+                                            <Volume2 className="size-3.5" />
+                                        </button>
+                                        {selectedVoice === v.id && (
+                                            <div className="absolute top-1.5 right-1.5 size-2 rounded-full bg-violet-400 shadow-[0_0_6px_rgba(139,92,246,0.8)]" />
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                            <p className="text-xs text-slate-600">✅ A voz é salva automaticamente ao clicar no card.</p>
                         </div>
 
                         <div className="pt-2">
