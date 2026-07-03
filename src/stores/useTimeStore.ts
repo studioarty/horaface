@@ -99,8 +99,19 @@ async function autoCloseOverdueRecords() {
       if (!matchedShift) continue;
 
       const [eH, eM] = matchedShift.endTime.split(":").map(Number);
+      const [sH, sM] = matchedShift.startTime.split(":").map(Number);
+      const startMinShift = sH * 60 + sM;
+      const endMinShift   = eH * 60 + eM;
+
       const targetDate = new Date(checkInDate);
       targetDate.setHours(eH, eM + tolerance, 0, 0);
+
+      // Turno da noite cruza meia-noite (ex: 22:00–03:18)
+      // O fim do turno é no DIA SEGUINTE — ajusta targetDate +1 dia
+      const isOvernightShift = endMinShift < startMinShift;
+      if (isOvernightShift && targetDate.getTime() <= checkInDate.getTime()) {
+        targetDate.setDate(targetDate.getDate() + 1);
+      }
 
       if (Date.now() >= targetDate.getTime()) {
         console.log(`[Auto-Checkout] Encerramento automático de ${provider.name} no registro ${record.id}`);
