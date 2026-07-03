@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera, MapPin, CheckCircle, XCircle, AlertTriangle, UserCheck, HelpCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import Webcam from 'react-webcam';
@@ -37,6 +37,37 @@ const MobileKiosk = () => {
   const webcamRef = useRef<Webcam>(null);
   // Synchronous lock to prevent duplicate scans/clicks
   const processingRef = useRef(false);
+
+  // ====== TTS — Voz humana ao registrar ======
+  const playFallbackTTS = useCallback((text: string) => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'pt-BR';
+    utterance.rate = 1.05;
+    utterance.pitch = 1.1;
+    const voices = window.speechSynthesis.getVoices();
+    const neuralVoice   = voices.find(v => v.name.includes('Neural')    && v.lang.includes('pt-BR'));
+    const googleVoice   = voices.find(v => v.name.includes('Google')    && v.lang.includes('pt-BR'));
+    const msVoice       = voices.find(v => v.name.includes('Maria')     && v.lang.includes('pt-BR'));
+    const ptVoice       = voices.find(v => v.lang.includes('pt-BR'));
+    utterance.voice = neuralVoice || googleVoice || msVoice || ptVoice || null;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  }, []);
+
+  const triggerAudio = useCallback((type: 'in' | 'out', providerName: string) => {
+    const firstName = providerName.split(' ')[0];
+    let text = '';
+    if (type === 'in') {
+      const h = new Date().getHours();
+      const greeting = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+      text = `${greeting}, ${firstName}. Entrada registrada com sucesso.`;
+    } else {
+      text = `Até logo, ${firstName}. Saída registrada com sucesso.`;
+    }
+    // Pequeno delay para garantir que o browser desbloqueie o contexto de áudio
+    setTimeout(() => playFallbackTTS(text), 100);
+  }, [playFallbackTTS]);
+  // ============================================
 
   // 1. Start background GPS Watch immediately
   useEffect(() => {
@@ -280,6 +311,7 @@ const MobileKiosk = () => {
           locationStr      // GPS de saída
         );
         if (result.success) {
+          triggerAudio('out', matchedProvider.name);
           setAppState('success');
           toast.success('Saída marcada com sucesso!');
         } else {
@@ -289,6 +321,7 @@ const MobileKiosk = () => {
       } else {
         // Passa o nome do colaborador, foto e GPS para ser salvo no banco
         await insertCheckIn(matchedProvider.id, capturedPhoto, locationStr, matchedProvider.name);
+        triggerAudio('in', matchedProvider.name);
         setAppState('success');
         toast.success('Entrada marcada com sucesso! Bom trabalho.');
       }
