@@ -19,12 +19,23 @@ interface TabAuditProps {
 // Helper: extrai fotos do campo photo_url separado por pipe
 function parsePhotos(photoUrl?: string): { entry: string | null; exit: string | null } {
   if (!photoUrl) return { entry: null, exit: null };
-  const parts = photoUrl.split('|');
-  // Filtra strings vazias e valida que é um data URI ou URL válida
-  const valid = (s: string) => s && (s.startsWith('data:image') || s.startsWith('http'));
+
+  const isValidImg = (s: string) =>
+    !!s && (s.startsWith('data:image') || s.startsWith('http'));
+
+  // Caso 1: sem pipe → só foto de entrada
+  if (!photoUrl.includes('|')) {
+    return { entry: isValidImg(photoUrl) ? photoUrl : null, exit: null };
+  }
+
+  // Caso 2: tem pipe → split em exatamente 2 partes (pode ter pipes no meio do base64? Não — base64 não usa |)
+  const pipeIdx = photoUrl.indexOf('|');
+  const left = photoUrl.substring(0, pipeIdx);   // antes do pipe = entrada
+  const right = photoUrl.substring(pipeIdx + 1); // depois do pipe = saída
+
   return {
-    entry: valid(parts[0]) ? parts[0] : null,
-    exit: parts.length > 1 && valid(parts[1]) ? parts[1] : null,
+    entry: isValidImg(left) ? left : null,
+    exit: isValidImg(right) ? right : null,
   };
 }
 

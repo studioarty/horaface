@@ -162,6 +162,20 @@ const MobileKiosk = () => {
     }
   };
 
+  // Helper: aguarda o vídeo estar pronto e captura a foto
+  const captureCurrentFrame = (): string | undefined => {
+    const video = webcamRef.current?.video;
+    if (!video) return undefined;
+    // Aceita readyState 2 (HAVE_CURRENT_DATA) ou superior
+    if (video.readyState < 2 || video.videoWidth === 0) return undefined;
+    try {
+      return capturePhoto(video);
+    } catch (e) {
+      console.warn('capturePhoto failed:', e);
+      return undefined;
+    }
+  };
+
   // 5. Confirm and execute check-in / check-out with validation
   const confirmPonto = async () => {
     if (!matchedProvider) return;
@@ -246,12 +260,9 @@ const MobileKiosk = () => {
     // Execute check-in ou check-out
     try {
       // 📸 Capturar foto biométrica no momento da confirmação
-      let capturedPhoto: string | undefined = undefined;
-      if (webcamRef.current?.video && webcamRef.current.video.readyState === 4) {
-        capturedPhoto = capturePhoto(webcamRef.current.video);
-      }
+      const capturedPhoto = captureCurrentFrame();
 
-      // 📍 Formatar coordenadas GPS
+      // 📍 Formatar coordenadas GPS (7 casas decimais)
       const locationStr = userCoords
         ? `${userCoords.lat.toFixed(7)},${userCoords.lng.toFixed(7)}`
         : undefined;
