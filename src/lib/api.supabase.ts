@@ -240,13 +240,46 @@ export async function fetchTodayRecords(): Promise<TimeRecord[]> {
   return (data || []).map(mapRecordFromDB);
 }
 
-export async function insertCheckIn(providerId: string, photoUrl?: string, location?: string): Promise<TimeRecord> {
+export async function insertCheckIn(providerId: string, photoUrl?: string, location?: string, providerName?: string): Promise<TimeRecord> {
   const now = new Date();
   const id = `rec-${Date.now()}`;
+
+  // 🔒 Anti-duplicata: verifica no banco se já existe registro aberto (check_out = null)
+  // nas últimas 4 horas para este colaborador, para evitar entradas em duplicidade.
+  if (navigator.onLine) {
+    try {
+      const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+      const { data: existingOpen } = await supabase
+        .from("time_records")
+        .select("id, check_in")
+        .eq("provider_id", providerId)
+        .is("check_out", null)
+        .gte("check_in", fourHoursAgo)
+        .limit(1);
+
+      if (existingOpen && existingOpen.length > 0) {
+        // Já existe entrada aberta — retorna o registro existente sem criar novo
+        const existing = existingOpen[0];
+        return {
+          id: existing.id,
+          providerId,
+          checkIn: existing.check_in,
+          checkOut: null,
+          status: "active",
+          date: new Date(existing.check_in).toISOString().split("T")[0],
+          photoUrl: "",
+          location: "",
+        };
+      }
+    } catch {
+      // Se a verificação falhar (rede instável), prossegue com a inserção normalmente
+    }
+  }
 
   const payload = {
     id,
     provider_id: providerId,
+    provider_name: providerName || null,
     check_in: now.toISOString(),
     photo_url: photoUrl || null,
     location: location || null,
@@ -283,6 +316,7 @@ export async function insertCheckIn(providerId: string, photoUrl?: string, locat
   cacheActiveRecord(providerId, record);
   return record;
 }
+
 
 export async function insertCheckOut(
   recordId: string,

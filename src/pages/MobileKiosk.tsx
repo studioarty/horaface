@@ -141,18 +141,25 @@ const MobileKiosk = () => {
     };
   }, [appState, modelsLoaded, providersList]);
 
-  // 4. Handle Match and show confirmation dialog
-  const handleMatchedGuy = (guy: Provider) => {
+  // 4. Handle Match: busca registro ativo direto do BANCO (não da memória)
+  // Isso garante que entradas feitas por outros dispositivos (quiosque desktop) sejam detectadas
+  const handleMatchedGuy = async (guy: Provider) => {
     setMatchedProvider(guy);
+    setAppState('confirm'); // Mostra a tela de confirmação imediatamente
 
-    // Find active record in memory
-    const openRecord = timeStore.records.find(
-      (r) => r.providerId === guy.id && !r.checkOut && !r.status.startsWith('adjusted')
-    );
-    
-    setActiveRecord(openRecord || null);
-    setLastOpType(openRecord ? 'out' : 'in');
-    setAppState('confirm');
+    try {
+      // Consulta o banco para saber se há entrada aberta (cross-device safe)
+      const openRecord = await timeStore.fetchActiveRecordFromDB(guy.id);
+      setActiveRecord(openRecord || null);
+      setLastOpType(openRecord ? 'out' : 'in');
+    } catch {
+      // Fallback: usa a memória local se o banco não responder
+      const openRecord = timeStore.records.find(
+        (r) => r.providerId === guy.id && !r.checkOut
+      );
+      setActiveRecord(openRecord || null);
+      setLastOpType(openRecord ? 'out' : 'in');
+    }
   };
 
   // 5. Confirm and execute check-in / check-out with validation
@@ -248,7 +255,8 @@ const MobileKiosk = () => {
           setAppState('gps_error');
         }
       } else {
-        await insertCheckIn(matchedProvider.id);
+        // Passa o nome do colaborador para ser salvo no banco
+        await insertCheckIn(matchedProvider.id, undefined, undefined, matchedProvider.name);
         setAppState('success');
         toast.success("Entrada marcada com sucesso! Bom trabalho.");
       }
