@@ -6,7 +6,7 @@ There are several ways of editing your application.
 
 **HoraFace**
 
-Simply visit the [OnSpace Project]() and start prompting.
+Simply visit the  and start prompting.
 
 Changes made via OnSpace will be committed automatically to this repo.
 
