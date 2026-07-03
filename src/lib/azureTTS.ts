@@ -8,7 +8,7 @@ import { getKioskSnapshot } from '@/stores/useKioskStore';
 
 const AZURE_KEY    = import.meta.env.VITE_AZURE_SPEECH_KEY as string;
 const AZURE_REGION = (import.meta.env.VITE_AZURE_SPEECH_REGION as string) || 'brazilsouth';
-const DEFAULT_VOICE = 'pt-BR-ThalitaNeural';
+const DEFAULT_VOICE = 'pt-BR-FranciscaNeural';
 
 // Lê a voz do KioskStore (sincronizado via Supabase — funciona em todos os dispositivos)
 // Fallback para localStorage para resposta imediata na UI
