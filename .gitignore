@@ -50,3 +50,14 @@ ponto-cloud/
 *.mjs
 *.js.map
 *.css.map
+
+# Garantir que arquivos não-web nunca entrem na pasta dist/ compilada
+dist/*.exe
+dist/*.zip
+dist/*.tar
+dist/*.img
+dist/*.mp3
+dist/*.pdf
+dist/*.xlsx
+dist/*.bat
+dist/*.sh
