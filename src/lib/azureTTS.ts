@@ -6,7 +6,7 @@
 
 const AZURE_KEY    = import.meta.env.VITE_AZURE_SPEECH_KEY as string;
 const AZURE_REGION = (import.meta.env.VITE_AZURE_SPEECH_REGION as string) || 'brazilsouth';
-const AZURE_VOICE  = 'pt-BR-FranciscaNeural';
+const AZURE_VOICE  = 'pt-BR-ThalitaNeural';
 
 // Cache em memória: texto → blob URL — evita chamadas repetidas à API
 const audioCache = new Map<string, string>();
