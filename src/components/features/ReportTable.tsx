@@ -1,5 +1,6 @@
 import type { TimeRecord } from "@/types";
 import { useProviderStore } from "@/stores/useProviderStore";
+import { useShiftStore } from "@/stores/useShiftStore";
 
 interface ReportTableProps {
   records: TimeRecord[];
@@ -41,6 +42,20 @@ interface DayRow {
 
 export default function ReportTable({ records }: ReportTableProps) {
   const providerStore = useProviderStore();
+  const shiftStore = useShiftStore();
+
+  // Busca os horários reais dos turnos cadastrados no sistema
+  const findShiftRange = (keyword: string): string | null => {
+    const shift = shiftStore.shifts.find(s =>
+      s.name.toLowerCase().includes(keyword.toLowerCase())
+    );
+    if (!shift) return null;
+    return `${shift.startTime}–${shift.endTime}`;
+  };
+
+  const manhaRange = findShiftRange('manh') ?? '05h–12h';
+  const tardeRange = findShiftRange('tarde') ?? '12h–18h';
+  const noiteRange = findShiftRange('noit') ?? '18h–05h';
 
   // Agrupa por data + provider
   const rowMap = new Map<string, DayRow>();
@@ -134,7 +149,7 @@ export default function ReportTable({ records }: ReportTableProps) {
               colSpan={2}
               style={{ padding: "8px 10px", textAlign: "center", fontSize: 11, fontWeight: 700, color: "#fbbf24", borderBottom: "2px solid rgba(251,191,36,0.3)", background: "rgba(251,191,36,0.04)" }}
             >
-              ☀️ Manhã <span style={{ fontSize: 9, opacity: 0.7 }}>(5h–12h)</span>
+              ☀️ Manhã <span style={{ fontSize: 9, opacity: 0.7 }}>({manhaRange})</span>
             </th>
 
             {/* Tarde */}
@@ -142,7 +157,7 @@ export default function ReportTable({ records }: ReportTableProps) {
               colSpan={2}
               style={{ padding: "8px 10px", textAlign: "center", fontSize: 11, fontWeight: 700, color: "#f97316", borderBottom: "2px solid rgba(249,115,22,0.3)", background: "rgba(249,115,22,0.04)" }}
             >
-              🌤 Tarde <span style={{ fontSize: 9, opacity: 0.7 }}>(12h–18h)</span>
+              🌤 Tarde <span style={{ fontSize: 9, opacity: 0.7 }}>({tardeRange})</span>
             </th>
 
             {/* Noite */}
@@ -150,7 +165,7 @@ export default function ReportTable({ records }: ReportTableProps) {
               colSpan={2}
               style={{ padding: "8px 10px", textAlign: "center", fontSize: 11, fontWeight: 700, color: "#818cf8", borderBottom: "2px solid rgba(129,140,248,0.3)", background: "rgba(129,140,248,0.04)" }}
             >
-              🌙 Noite <span style={{ fontSize: 9, opacity: 0.7 }}>(18h–5h)</span>
+              🌙 Noite <span style={{ fontSize: 9, opacity: 0.7 }}>({noiteRange})</span>
             </th>
           </tr>
 
