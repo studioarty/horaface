@@ -66,10 +66,14 @@ export function TabPayroll({ filteredRecords, dateStart, dateEnd }: TabPayrollPr
             }
 
             const data = map.get(rec.providerId);
-            data.uniqueDaysWorked.add(rec.date);
+
+            // Use stored date or derive from checkIn (handles null date field)
+            const recDate = rec.date || new Date(rec.checkIn).toLocaleDateString('sv');
+            data.uniqueDaysWorked.add(recDate);
             data.records.push(rec);
 
             if (rec.checkOut) {
+                // Actual checkout recorded
                 const checkInDate = new Date(rec.checkIn);
                 let durationMs = new Date(rec.checkOut).getTime() - checkInDate.getTime();
                 if (rec.breakStart && rec.breakEnd) {
@@ -78,6 +82,24 @@ export function TabPayroll({ filteredRecords, dateStart, dateEnd }: TabPayrollPr
                     durationMs = Math.max(0, durationMs - excessMs);
                 }
                 data.totalRealHours += durationMs / 3600000;
+            } else {
+                // No checkout — check if shift end time has already passed
+                // If yes, count hours up to the scheduled shift end ("implied checkout")
+                const shiftId = prov.shiftIds?.[0] || prov.shiftId;
+                const shift = shiftStore.shifts.find(s => s.id === shiftId);
+                if (shift?.endTime) {
+                    const checkInDate = new Date(rec.checkIn);
+                    const [eH, eM] = shift.endTime.split(':').map(Number);
+                    const expectedEnd = new Date(checkInDate);
+                    expectedEnd.setHours(eH, eM, 0, 0);
+                    // Overnight shift: end next day
+                    if (expectedEnd <= checkInDate) expectedEnd.setDate(expectedEnd.getDate() + 1);
+                    // Only count if shift end has already passed
+                    if (expectedEnd <= new Date()) {
+                        const durationMs = expectedEnd.getTime() - checkInDate.getTime();
+                        data.totalRealHours += Math.max(0, durationMs / 3600000);
+                    }
+                }
             }
         });
 

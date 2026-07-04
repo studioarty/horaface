@@ -73,9 +73,11 @@ export default function Reports() {
   }, [period, customStart, customEnd]);
 
   const filteredRecords = useMemo(() => {
-    let recs = timeStore.records.filter(
-      (r) => r.date >= dateRange.start && r.date <= dateRange.end,
-    );
+    let recs = timeStore.records.filter((r) => {
+      // Some records may have null date — derive from checkIn as fallback
+      const recDate = r.date || new Date(r.checkIn).toLocaleDateString('sv');
+      return recDate >= dateRange.start && recDate <= dateRange.end;
+    });
     if (selectedProvider !== 'all') {
       recs = recs.filter((r) => r.providerId === selectedProvider);
     }
