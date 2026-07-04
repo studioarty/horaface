@@ -21,5 +21,15 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Checagem periódica de atualizações do SW (a cada 60s)
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function(reg) {
+            setInterval(function() { reg.update(); }, 60000);
+          });
+        });
+      }
+    </script>
   </body>
 </html>

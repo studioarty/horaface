@@ -32,8 +32,12 @@
 # Cache de assets estaticos (JS, CSS, imagens compilados pelo Vite)
 <IfModule mod_expires.c>
   ExpiresActive On
+  # SW e registerSW = NUNCA cachear (critico para atualizar PWA)
+  <FilesMatch "^(sw|registerSW)\.js$">
+    ExpiresDefault "access plus 0 seconds"
+  </FilesMatch>
   # Assets com hash no nome = cache longo
-  <FilesMatch "\.(js|css)$">
+  <FilesMatch "assets/.*\.(js|css)$">
     ExpiresDefault "access plus 1 year"
   </FilesMatch>
   ExpiresByType image/jpeg "access plus 1 year"
@@ -55,6 +59,10 @@
   Header set Permissions-Policy "camera=(self), microphone=(self)"
   # Sem cache para HTML
   <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+  # Sem cache para SW (critico para PWA receber atualizacoes)
+  <FilesMatch "^(sw|registerSW)\.js$">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
   </FilesMatch>
 </IfModule>

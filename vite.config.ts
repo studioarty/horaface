@@ -19,6 +19,10 @@ export default defineConfig({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
+        cleanupOutdatedCaches: true,
+      },
+      devOptions: {
+        enabled: false,
       },
       manifest: {
         name: 'HoraFace',
