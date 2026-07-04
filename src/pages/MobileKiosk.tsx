@@ -10,16 +10,16 @@ import { haversineDistance } from '@/lib/geoUtils';
 import { detectFace, loadModels, matchFace, capturePhoto } from '@/lib/faceApi';
 import { greetCollaborator } from '@/lib/azureTTS';
 
-type MainTab = 'scan' | 'history';
+type ScanMode = 'checkin' | 'extrato' | 'resumo';
 
 const MobileKiosk = () => {
   const timeStore = useTimeStore();
 
-  // Bottom tab navigation
-  const [mainTab, setMainTab] = useState<MainTab>('scan');
-  
-  // App States: 'loading' | 'ready' | 'confirm' | 'success' | 'gps_error' | 'shift_error'
-  const [appState, setAppState] = useState<'loading' | 'ready' | 'confirm' | 'success' | 'gps_error' | 'shift_error'>('loading');
+  // What the user intends to do when they scan
+  const [scanMode, setScanMode] = useState<ScanMode>('checkin');
+
+  // App States: 'loading' | 'idle' | 'ready' | 'confirm' | 'success' | 'gps_error' | 'shift_error'
+  const [appState, setAppState] = useState<'loading' | 'idle' | 'ready' | 'confirm' | 'success' | 'gps_error' | 'shift_error'>('loading');
   const [loadingText, setLoadingText] = useState('Iniciando sistema...');
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -98,7 +98,7 @@ const MobileKiosk = () => {
 
         await timeStore.loadRecords();
 
-        setAppState('ready');
+        setAppState('idle'); // Start on idle screen — camera only opens on button tap
       } catch (err) {
         console.error(err);
         toast.error("Erro crítico na inicialização do app.");
@@ -161,10 +161,10 @@ const MobileKiosk = () => {
     };
   }, [appState, modelsLoaded, providersList]);
 
-  // 4. Handle Match: branches based on mainTab
+  // 4. Handle Match: branches based on scanMode
   const handleMatchedGuy = async (guy: Provider) => {
-    if (mainTab === 'history') {
-      // History mode: don't confirm, just load their records
+    if (scanMode !== 'checkin') {
+      // History mode: load records, show overlay
       setHistoryProvider(guy);
       setHistoryLoading(true);
       setAppState('confirm'); // pause the camera
@@ -179,7 +179,7 @@ const MobileKiosk = () => {
       return;
     }
 
-    // Scan mode: existing check-in / check-out flow
+    // Check-in/out mode: existing flow
     const photo = captureCurrentFrame();
     setCapturedBiometricPhoto(photo);
     setMatchedProvider(guy);
@@ -355,7 +355,7 @@ const MobileKiosk = () => {
     setCapturedBiometricPhoto(undefined);
     processingRef.current = false;
     setIsProcessing(false);
-    setAppState('ready');
+    setAppState('idle'); // Always return to idle (not auto-camera)
   };
 
   const clearHistory = () => {
@@ -363,22 +363,21 @@ const MobileKiosk = () => {
     setHistoryRecords([]);
     setHistoryLoading(false);
     processingRef.current = false;
-    setAppState('ready');
+    setAppState('idle');
   };
 
-  const switchTab = (tab: MainTab) => {
-    setMainTab(tab);
-    if (tab === 'history') {
-      // Clear any previous history and start fresh scan
-      setHistoryProvider(null);
-      setHistoryRecords([]);
-      processingRef.current = false;
-      if (appState !== 'ready') setAppState('ready');
-    } else {
-      // Back to scan tab — reset scan state
-      processingRef.current = false;
-      if (appState !== 'ready' && appState !== 'loading') setAppState('ready');
+  // Start camera scan intentionally for a specific purpose
+  const startScan = (mode: ScanMode) => {
+    setScanMode(mode);
+    if (mode !== 'checkin') {
+      setHistorySubTab(mode as 'extrato' | 'resumo');
     }
+    setHistoryProvider(null);
+    setHistoryRecords([]);
+    setMatchedProvider(null);
+    setErrorMessage('');
+    processingRef.current = false;
+    setAppState('ready');
   };
 
   // History computed values
@@ -449,7 +448,7 @@ const MobileKiosk = () => {
         </div>
 
         {/* Dynamic Body */}
-        <div className="p-6 sm:p-8 flex-1 flex flex-col justify-center min-h-[42dvh]">
+        <div className="p-5 sm:p-7 flex-1 flex flex-col justify-center min-h-[42dvh]">
           
           {/* STATE: LOADING */}
           {appState === 'loading' && (
@@ -465,9 +464,45 @@ const MobileKiosk = () => {
             </div>
           )}
 
+          {/* STATE: IDLE — 3 big action buttons, no camera */}
+          {appState === 'idle' && (
+            <div className="flex flex-col gap-4 animate-in fade-in-50 duration-400 py-2">
+              {/* Big primary button: Registrar Hora */}
+              <button
+                onClick={() => startScan('checkin')}
+                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-[0.97] text-white font-extrabold py-6 rounded-2xl shadow-[0_4px_24px_rgba(16,185,129,0.35)] border border-emerald-500/30 flex items-center justify-center gap-3 transition-all text-lg tracking-wide"
+              >
+                <Camera className="size-7" />
+                Registrar Hora
+              </button>
+
+              {/* Secondary buttons */}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => startScan('extrato')}
+                  className="bg-slate-900/70 hover:bg-slate-800/80 active:scale-[0.97] border border-slate-700/60 hover:border-cyan-700/60 text-white font-bold py-6 rounded-2xl flex flex-col items-center gap-2.5 transition-all shadow-sm"
+                >
+                  <FileText className="size-7 text-cyan-400" />
+                  <span className="text-sm text-cyan-200">Extrato</span>
+                </button>
+                <button
+                  onClick={() => startScan('resumo')}
+                  className="bg-slate-900/70 hover:bg-slate-800/80 active:scale-[0.97] border border-slate-700/60 hover:border-amber-700/60 text-white font-bold py-6 rounded-2xl flex flex-col items-center gap-2.5 transition-all shadow-sm"
+                >
+                  <BarChart3 className="size-7 text-amber-400" />
+                  <span className="text-sm text-amber-200">Resumo do Mês</span>
+                </button>
+              </div>
+
+              <p className="text-center text-[10px] text-slate-600 mt-1">
+                Toque em um botão e posicione seu rosto na câmera
+              </p>
+            </div>
+          )}
+
           {/* STATE: READY (SCANNING CAMERA) */}
           {appState === 'ready' && (
-            <div className="flex flex-col gap-5 animate-in zoom-in-95 duration-500">
+            <div className="flex flex-col gap-4 animate-in zoom-in-95 duration-500">
               <div className="relative w-full aspect-[3/4] bg-[#05080f] rounded-2xl overflow-hidden shadow-[0_0_30px_rgba(16,185,129,0.12)] ring-1 ring-white/10">
                 {!modelsLoaded ? (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 gap-4 bg-slate-950">
@@ -487,35 +522,31 @@ const MobileKiosk = () => {
                       }}
                       className="w-full h-full object-cover scale-x-[-1] brightness-110 contrast-125"
                     />
-                    
-                    {/* Cyber HUD Overlay */}
                     <div className="absolute inset-0 pointer-events-none">
                       <div className="absolute inset-0 shadow-[inset_0_0_80px_rgba(0,0,0,0.75)]"></div>
-                      
-                      {/* Brackets */}
                       <div className="absolute top-6 left-6 w-10 h-10 border-t-2 border-l-2 border-emerald-400/80 rounded-tl-lg drop-shadow-[0_0_4px_rgba(52,211,153,0.8)]"></div>
                       <div className="absolute top-6 right-6 w-10 h-10 border-t-2 border-r-2 border-emerald-400/80 rounded-tr-lg drop-shadow-[0_0_4px_rgba(52,211,153,0.8)]"></div>
                       <div className="absolute bottom-6 left-6 w-10 h-10 border-b-2 border-l-2 border-emerald-400/80 rounded-bl-lg drop-shadow-[0_0_4px_rgba(52,211,153,0.8)]"></div>
                       <div className="absolute bottom-6 right-6 w-10 h-10 border-b-2 border-r-2 border-emerald-400/80 rounded-br-lg drop-shadow-[0_0_4px_rgba(52,211,153,0.8)]"></div>
-                      
-                      {/* Scanner Line */}
                       <div className="absolute top-0 left-0 w-full h-[1.5px] bg-emerald-400 opacity-90 shadow-[0_0_15px_1px_rgba(52,211,153,0.8)] animate-[scan_2.5s_ease-in-out_infinite]"></div>
-                      
-                      {/* Face Oval */}
                       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[65%] h-[55%] border border-dashed border-emerald-400/25 rounded-[120px]"></div>
                     </div>
                   </>
                 )}
               </div>
 
-              <div className="flex flex-col items-center gap-3">
+              <div className="flex flex-col items-center gap-2">
                 <div className="bg-slate-900/60 border border-white/5 px-4 py-2.5 rounded-2xl flex items-center gap-2">
                   <div className="size-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></div>
-                  <p className="text-[11px] text-slate-300 font-medium">Por favor, posicione seu rosto no centro da câmera.</p>
+                  <p className="text-[11px] text-slate-300 font-medium">
+                    {scanMode === 'checkin' ? 'Posicione seu rosto para registrar marcação' :
+                     scanMode === 'extrato' ? 'Posicione seu rosto para ver seu extrato' :
+                     'Posicione seu rosto para ver o resumo do mês'}
+                  </p>
                 </div>
-                {userCoords && (
-                  <p className="text-[9px] font-mono text-slate-500 uppercase">GPS Ativo: {userCoords.lat.toFixed(5)}, {userCoords.lng.toFixed(5)}</p>
-                )}
+                <button onClick={resetAppState} className="text-[10px] text-slate-600 hover:text-slate-400 transition-colors mt-1">
+                  ← Cancelar e voltar
+                </button>
               </div>
             </div>
           )}
@@ -660,7 +691,7 @@ const MobileKiosk = () => {
       </div>
 
       {/* ── HISTORY OVERLAY (shown when historyProvider loaded) ── */}
-      {mainTab === 'history' && historyProvider && !historyLoading && (
+      {scanMode !== 'checkin' && historyProvider && !historyLoading && (
         <div className="fixed inset-0 z-30 bg-[#020617] overflow-y-auto pb-24" style={{top:0}}>
           {/* Back header */}
           <div className="sticky top-0 z-10 bg-[#020617]/95 backdrop-blur border-b border-white/5 px-4 py-3 flex items-center gap-3">
@@ -775,33 +806,42 @@ const MobileKiosk = () => {
       )}
 
       {/* ── HISTORY LOADING ── */}
-      {mainTab === 'history' && historyLoading && (
+      {historyLoading && scanMode !== 'checkin' && (
         <div className="fixed inset-0 z-30 bg-[#020617]/90 flex flex-col items-center justify-center gap-4">
           <div className="size-10 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
           <p className="text-sm text-slate-400">Carregando seu extrato...</p>
         </div>
       )}
 
-      {/* ── BOTTOM NAVIGATION BAR ── */}
-      {appState !== 'loading' && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-white/5 flex">
+      {/* ── BOTTOM ACTION BAR (3 large buttons, visible during ready/error states) ── */}
+      {(appState === 'ready' || appState === 'gps_error' || appState === 'shift_error') && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/98 backdrop-blur-xl border-t border-white/5 grid grid-cols-3">
           <button
-            onClick={() => switchTab('scan')}
-            className={`flex-1 flex flex-col items-center gap-1 py-3 transition-colors ${
-              mainTab === 'scan' ? 'text-emerald-400' : 'text-slate-600 hover:text-slate-400'
+            onClick={() => startScan('checkin')}
+            className={`flex flex-col items-center gap-1 py-4 transition-colors active:bg-white/5 ${
+              scanMode === 'checkin' ? 'text-emerald-400' : 'text-slate-600 hover:text-slate-400'
             }`}
           >
-            <Camera className="size-5" />
-            <span className="text-[9px] font-bold uppercase tracking-wider">Marcação</span>
+            <Camera className="size-6" />
+            <span className="text-[9px] font-bold uppercase tracking-wide">Registrar</span>
           </button>
           <button
-            onClick={() => switchTab('history')}
-            className={`flex-1 flex flex-col items-center gap-1 py-3 transition-colors ${
-              mainTab === 'history' ? 'text-cyan-400' : 'text-slate-600 hover:text-slate-400'
+            onClick={() => startScan('extrato')}
+            className={`flex flex-col items-center gap-1 py-4 transition-colors active:bg-white/5 border-x border-white/5 ${
+              scanMode === 'extrato' ? 'text-cyan-400' : 'text-slate-600 hover:text-slate-400'
             }`}
           >
-            <FileText className="size-5" />
-            <span className="text-[9px] font-bold uppercase tracking-wider">Histórico</span>
+            <FileText className="size-6" />
+            <span className="text-[9px] font-bold uppercase tracking-wide">Extrato</span>
+          </button>
+          <button
+            onClick={() => startScan('resumo')}
+            className={`flex flex-col items-center gap-1 py-4 transition-colors active:bg-white/5 ${
+              scanMode === 'resumo' ? 'text-amber-400' : 'text-slate-600 hover:text-slate-400'
+            }`}
+          >
+            <BarChart3 className="size-6" />
+            <span className="text-[9px] font-bold uppercase tracking-wide">Resumo</span>
           </button>
         </div>
       )}
