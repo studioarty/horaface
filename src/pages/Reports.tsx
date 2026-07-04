@@ -55,21 +55,33 @@ export default function Reports() {
   const { toast } = useToast();
 
   const dateRange = useMemo(() => {
+    // Always use local date (toLocaleDateString('sv') → YYYY-MM-DD in local timezone)
+    // Never use toISOString() which returns UTC and causes off-by-one errors at night
+    const now = new Date();
+    const todayLocal = now.toLocaleDateString('sv'); // e.g. '2026-07-03'
+
     if (period === 'custom') {
       return { start: customStart, end: customEnd };
     }
-    const now = new Date();
-    const end = now.toISOString().split('T')[0];
+
     let start: string;
+
     if (period === 'weekly') {
-      const d = new Date(now); d.setDate(d.getDate() - 7); start = d.toISOString().split('T')[0];
+      const d = new Date(now);
+      d.setDate(d.getDate() - 7);
+      start = d.toLocaleDateString('sv');
     } else if (period === 'biweekly') {
-      const d = new Date(now); d.setDate(d.getDate() - 15); start = d.toISOString().split('T')[0];
+      const d = new Date(now);
+      d.setDate(d.getDate() - 15);
+      start = d.toLocaleDateString('sv');
     } else {
-      // monthly: current month
-      const d = new Date(now); d.setDate(1); start = d.toISOString().split('T')[0];
+      // Monthly: first day of current month in LOCAL timezone
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      start = `${y}-${m}-01`;
     }
-    return { start, end };
+
+    return { start, end: todayLocal };
   }, [period, customStart, customEnd]);
 
   const filteredRecords = useMemo(() => {
