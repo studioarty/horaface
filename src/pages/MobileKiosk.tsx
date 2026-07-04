@@ -366,6 +366,46 @@ const MobileKiosk = () => {
     setAppState('idle');
   };
 
+  const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  const shareComprovante = async () => {
+    if (!historyProvider) return;
+    const rate = (historyProvider as any).hourlyRate || 0;
+    const value = historyTotalHours * rate;
+    const monthStr = now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    const lines = [
+      '\ud83d\udccb COMPROVANTE HORAFACE',
+      '\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501',
+      `\ud83d\udc64 Colaborador: ${historyProvider.name}`,
+      `\ud83d\udcc5 Per\u00edodo: ${monthStr}`,
+      '\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501',
+      `\u2705 Dias trabalhados: ${historyTotalDays}`,
+      `\u23f1\ufe0f Total de horas: ${historyTotalHours.toFixed(2)}h`,
+      `\ud83d\udcca Turnos: ${historyMonthRecords.length}`,
+      rate > 0 ? `\ud83d\udcb0 Taxa hor\u00e1ria: ${fmtBRL(rate)}/h` : null,
+      rate > 0 ? `\ud83d\udcb5 VALOR ACUMULADO: ${fmtBRL(value)}` : null,
+      '\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501',
+      'Registros do m\u00eas:',
+      ...historyByDay.map(([day, recs]) => {
+        const dayH = recs.reduce((a: number, r: TimeRecord) => r.checkOut ? a + (new Date(r.checkOut).getTime() - new Date(r.checkIn).getTime()) / 3600000 : a, 0);
+        const entries = recs.map((r: TimeRecord) => `   ${fmtTime(r.checkIn)} \u2192 ${r.checkOut ? fmtTime(r.checkOut) : '...'}`).join('\n');
+        return `\ud83d\udcc5 ${fmtDate(day)} | ${dayH.toFixed(1)}h\n${entries}`;
+      }),
+      '\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501',
+      'Emitido por HoraFace',
+      'Sistema de Marca\u00e7\u00e3o de Hora',
+      new Date().toLocaleString('pt-BR'),
+    ].filter(Boolean).join('\n');
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Comprovante HoraFace', text: lines });
+      } else {
+        await navigator.clipboard.writeText(lines);
+        toast.success('Comprovante copiado para a \u00e1rea de transfer\u00eancia!');
+      }
+    } catch { /* user cancelled */ }
+  };
+
   // Start camera scan intentionally for a specific purpose
   const startScan = (mode: ScanMode) => {
     setScanMode(mode);
@@ -694,32 +734,98 @@ const MobileKiosk = () => {
       {scanMode !== 'checkin' && historyProvider && !historyLoading && (
         <div className="fixed inset-0 z-30 bg-[#020617] overflow-y-auto pb-24" style={{top:0}}>
           {/* Back header */}
-          <div className="sticky top-0 z-10 bg-[#020617]/95 backdrop-blur border-b border-white/5 px-4 py-3 flex items-center gap-3">
-            <button onClick={clearHistory} className="size-8 rounded-lg bg-slate-800/60 flex items-center justify-center border border-slate-700/50 text-slate-400 hover:text-slate-200 transition-colors">
-              <ChevronLeft className="size-4" />
+          <div className="sticky top-0 z-10 bg-[#020617]/98 backdrop-blur-xl border-b border-white/5 px-4 py-3 flex items-center gap-3">
+            <button onClick={clearHistory} className="size-9 rounded-xl bg-slate-800/60 flex items-center justify-center border border-slate-700/50 text-slate-400 hover:text-slate-200 transition-colors shrink-0">
+              <ChevronLeft className="size-5" />
             </button>
             {historyProvider.photo ? (
-              <img src={historyProvider.photo} className="size-8 rounded-lg object-cover" />
+              <img src={historyProvider.photo} className="size-9 rounded-xl object-cover shrink-0" />
             ) : (
-              <div className="size-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400">
-                <span className="text-xs font-bold">{historyProvider.name[0]}</span>
+              <div className="size-9 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center text-slate-300 shrink-0">
+                <span className="text-sm font-bold">{historyProvider.name[0]}</span>
               </div>
             )}
-            <div>
-              <p className="text-sm font-bold text-slate-100">{historyProvider.name}</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-slate-100 truncate">{historyProvider.name}</p>
               <p className="text-[9px] text-slate-500 uppercase tracking-wider">Meus Comprovantes</p>
             </div>
+            <button
+              onClick={shareComprovante}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-900/30 border border-cyan-700/40 text-cyan-300 hover:bg-cyan-800/40 transition-all text-[10px] font-bold uppercase tracking-wide"
+            >
+              <TrendingUp className="size-3.5" />
+              Compartilhar
+            </button>
           </div>
 
-          <div className="p-4 space-y-4">
+          <div className="p-4 space-y-3">
+
+            {/* ── COMPROVANTE CARD (valor acumulado) ── */}
+            {(() => {
+              const rate = (historyProvider as any).hourlyRate || 0;
+              const value = historyTotalHours * rate;
+              return (
+                <div className="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-700/60 rounded-2xl p-4 space-y-3">
+                  {/* Header do comprovante */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="size-6 rounded-lg bg-emerald-900/40 border border-emerald-700/30 flex items-center justify-center">
+                        <FileText className="size-3.5 text-emerald-400" />
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Comprovante</span>
+                    </div>
+                    <span className="text-[9px] text-slate-600 capitalize">{now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</span>
+                  </div>
+
+                  {/* Stats grid */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-slate-800/40 rounded-xl p-2.5">
+                      <p className="text-[8px] text-slate-500 uppercase font-bold mb-1">Horas</p>
+                      <p className="text-base font-bold text-cyan-300 font-mono">{historyTotalHours.toFixed(1)}h</p>
+                    </div>
+                    <div className="bg-slate-800/40 rounded-xl p-2.5">
+                      <p className="text-[8px] text-slate-500 uppercase font-bold mb-1">Dias</p>
+                      <p className="text-base font-bold text-emerald-300 font-mono">{historyTotalDays}d</p>
+                    </div>
+                    <div className="bg-slate-800/40 rounded-xl p-2.5">
+                      <p className="text-[8px] text-slate-500 uppercase font-bold mb-1">Turnos</p>
+                      <p className="text-base font-bold text-amber-300 font-mono">{historyMonthRecords.length}</p>
+                    </div>
+                  </div>
+
+                  {/* Valor acumulado (only if rate is configured) */}
+                  {rate > 0 ? (
+                    <div className="bg-emerald-950/40 border border-emerald-800/40 rounded-xl p-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-[9px] text-emerald-600 uppercase font-bold mb-0.5">Valor Acumulado</p>
+                        <p className="text-[9px] text-slate-600">{historyTotalHours.toFixed(2)}h × {fmtBRL(rate)}/h</p>
+                      </div>
+                      <p className="text-xl font-extrabold text-emerald-300 font-mono">{fmtBRL(value)}</p>
+                    </div>
+                  ) : (
+                    <p className="text-center text-[10px] text-slate-600">Taxa horária não configurada</p>
+                  )}
+
+                  {/* Share button */}
+                  <button
+                    onClick={shareComprovante}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-cyan-900/20 border border-cyan-800/30 text-cyan-300 hover:bg-cyan-900/40 transition-all text-xs font-bold"
+                  >
+                    <TrendingUp className="size-4" />
+                    Compartilhar Comprovante
+                  </button>
+                </div>
+              );
+            })()}
+
             {/* Sub-tabs */}
             <div className="flex gap-1 bg-slate-900/60 rounded-xl p-1 border border-slate-800">
               {(['extrato','resumo'] as const).map(t => (
                 <button key={t} onClick={() => setHistorySubTab(t)}
-                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-                    historySubTab === t ? 'bg-cyan-900/50 text-cyan-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.25)]' : 'text-slate-500'
+                  className={`flex-1 py-2.5 rounded-lg text-xs font-semibold transition-all ${
+                    historySubTab === t ? 'bg-cyan-900/50 text-cyan-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.25)]' : 'text-slate-500 hover:text-slate-400'
                   }`}>
-                  {t === 'extrato' ? '📄 Extrato' : '📊 Resumo do Mês'}
+                  {t === 'extrato' ? '📄 Extrato' : '📊 Por Dia'}
                 </button>
               ))}
             </div>
@@ -732,69 +838,73 @@ const MobileKiosk = () => {
                 ) : historyRecords.map(r => {
                   const dIn = new Date(r.checkIn);
                   const hours = r.checkOut ? (new Date(r.checkOut).getTime() - dIn.getTime()) / 3600000 : 0;
+                  const rate = (historyProvider as any).hourlyRate || 0;
+                  const recVal = rate > 0 && r.checkOut ? hours * rate : 0;
                   return (
-                    <div key={r.id} className="bg-slate-900/40 border border-slate-800 rounded-xl p-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="flex flex-col items-center min-w-[32px]">
-                          <span className="text-[9px] text-slate-500 uppercase">{dIn.toLocaleDateString('pt-BR',{weekday:'short'})}</span>
-                          <span className="text-lg font-bold text-slate-100 leading-none">{dIn.getDate().toString().padStart(2,'0')}</span>
-                          <span className="text-[9px] text-slate-600">{dIn.toLocaleDateString('pt-BR',{month:'short'})}</span>
-                        </div>
-                        <div className="h-8 w-px bg-slate-800" />
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950/50 text-emerald-400 border border-emerald-900/30 font-mono">↑ {fmtTime(r.checkIn)}</span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-950/50 text-rose-400 border border-rose-900/30 font-mono">↓ {r.checkOut ? fmtTime(r.checkOut) : '...'}</span>
+                    <div key={r.id} className="bg-slate-900/40 border border-slate-800 rounded-xl p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="flex flex-col items-center min-w-[32px]">
+                            <span className="text-[9px] text-slate-500 uppercase">{dIn.toLocaleDateString('pt-BR',{weekday:'short'})}</span>
+                            <span className="text-lg font-bold text-slate-100 leading-none">{dIn.getDate().toString().padStart(2,'0')}</span>
+                            <span className="text-[9px] text-slate-600">{dIn.toLocaleDateString('pt-BR',{month:'short'})}</span>
                           </div>
-                          <span className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
-                            <Clock className="size-2.5" />{r.checkOut ? `${hours.toFixed(1)}h` : 'Em andamento'}
-                          </span>
+                          <div className="h-8 w-px bg-slate-800" />
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950/50 text-emerald-400 border border-emerald-900/30 font-mono">↑ {fmtTime(r.checkIn)}</span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-950/50 text-rose-400 border border-rose-900/30 font-mono">↓ {r.checkOut ? fmtTime(r.checkOut) : '...'}</span>
+                            </div>
+                            <span className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
+                              <Clock className="size-2.5" />{r.checkOut ? `${hours.toFixed(2)}h` : 'Em andamento'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-0.5">
+                          {r.checkOut && <span className="text-[11px] font-mono text-cyan-400">{hours.toFixed(2)}h</span>}
+                          {recVal > 0 && <span className="text-[11px] font-mono font-bold text-emerald-400">{fmtBRL(recVal)}</span>}
                         </div>
                       </div>
-                      {r.checkOut && (
-                        <span className="text-[10px] font-mono text-cyan-400">{hours.toFixed(1)}h</span>
-                      )}
                     </div>
                   );
                 })}
               </div>
             )}
 
-            {/* ── RESUMO DO MÊS ── */}
+            {/* ── POR DIA (RESUMO) ── */}
             {historySubTab === 'resumo' && (
-              <div className="space-y-4">
-                {/* Totais */}
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-3">
-                    <div className="flex items-center gap-1 mb-1"><Clock className="size-3 text-cyan-400" /><span className="text-[9px] text-slate-500 uppercase font-bold">Horas</span></div>
-                    <span className="text-lg font-bold text-cyan-300 font-mono">{historyTotalHours.toFixed(1)}h</span>
-                  </div>
-                  <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-3">
-                    <div className="flex items-center gap-1 mb-1"><Calendar className="size-3 text-emerald-400" /><span className="text-[9px] text-slate-500 uppercase font-bold">Dias</span></div>
-                    <span className="text-lg font-bold text-emerald-300 font-mono">{historyTotalDays}d</span>
-                  </div>
-                  <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-3">
-                    <div className="flex items-center gap-1 mb-1"><TrendingUp className="size-3 text-amber-400" /><span className="text-[9px] text-slate-500 uppercase font-bold">Turnos</span></div>
-                    <span className="text-lg font-bold text-amber-300 font-mono">{historyMonthRecords.length}</span>
-                  </div>
-                </div>
-                <p className="text-center text-[11px] text-slate-500 capitalize">{now.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</p>
-                {/* Por dia */}
-                {historyByDay.map(([day, recs]) => {
-                  const dayH = recs.reduce((a,r) => r.checkOut ? a + (new Date(r.checkOut).getTime()-new Date(r.checkIn).getTime())/3600000 : a, 0);
+              <div className="space-y-2">
+                {historyByDay.length === 0 ? (
+                  <div className="text-center py-10 text-slate-500 text-sm">Nenhum registro encontrado.</div>
+                ) : historyByDay.map(([day, recs]) => {
+                  const rate = (historyProvider as any).hourlyRate || 0;
+                  const dayH = recs.reduce((a, r) => r.checkOut ? a + (new Date(r.checkOut).getTime()-new Date(r.checkIn).getTime())/3600000 : a, 0);
+                  const dayVal = rate > 0 ? dayH * rate : 0;
                   return (
                     <div key={day} className="bg-slate-900/40 border border-slate-800 rounded-xl p-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-bold text-slate-200">{fmtDate(day)}</span>
-                        <span className="text-[11px] text-cyan-400 font-mono font-bold">{dayH > 0 ? `${dayH.toFixed(1)}h` : '—'}</span>
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <span className="text-sm font-bold text-slate-200">{fmtDate(day)}</span>
+                          <span className="text-[9px] text-slate-600 ml-2 capitalize">{(() => { const [y,m,d] = day.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('pt-BR',{weekday:'long'}); })()}</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[11px] text-cyan-400 font-mono font-bold">{dayH > 0 ? `${dayH.toFixed(2)}h` : '—'}</p>
+                          {dayVal > 0 && <p className="text-[10px] text-emerald-400 font-mono font-bold">{fmtBRL(dayVal)}</p>}
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        {recs.map(r => (
-                          <div key={r.id} className="flex gap-2">
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950/50 text-emerald-400 border border-emerald-900/30 font-mono">↑ {fmtTime(r.checkIn)}</span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-950/50 text-rose-400 border border-rose-900/30 font-mono">↓ {r.checkOut ? fmtTime(r.checkOut) : '...'}</span>
-                          </div>
-                        ))}
+                      <div className="space-y-1.5">
+                        {recs.map(r => {
+                          const h = r.checkOut ? (new Date(r.checkOut).getTime()-new Date(r.checkIn).getTime())/3600000 : 0;
+                          return (
+                            <div key={r.id} className="flex items-center justify-between">
+                              <div className="flex gap-1.5">
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950/50 text-emerald-400 border border-emerald-900/30 font-mono">↑ {fmtTime(r.checkIn)}</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-950/50 text-rose-400 border border-rose-900/30 font-mono">↓ {r.checkOut ? fmtTime(r.checkOut) : '...'}</span>
+                              </div>
+                              {r.checkOut && <span className="text-[9px] text-slate-500 font-mono">{h.toFixed(2)}h</span>}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
