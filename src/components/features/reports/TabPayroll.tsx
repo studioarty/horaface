@@ -83,21 +83,34 @@ export function TabPayroll({ filteredRecords, dateStart, dateEnd }: TabPayrollPr
                 }
                 data.totalRealHours += durationMs / 3600000;
             } else {
-                // No checkout — check if shift end time has already passed
-                // If yes, count hours up to the scheduled shift end ("implied checkout")
-                const shiftId = prov.shiftIds?.[0] || prov.shiftId;
-                const shift = shiftStore.shifts.find(s => s.id === shiftId);
-                if (shift?.endTime) {
-                    const checkInDate = new Date(rec.checkIn);
-                    const [eH, eM] = shift.endTime.split(':').map(Number);
+                // No checkout — match record to its nearest shift by checkIn time
+                // This correctly handles collaborators with multiple shifts (morning + afternoon)
+                const allShiftIds = prov.shiftIds?.length
+                    ? prov.shiftIds
+                    : prov.shiftId ? [prov.shiftId] : [];
+                const checkInDate = new Date(rec.checkIn);
+                const checkInMins = checkInDate.getHours() * 60 + checkInDate.getMinutes();
+
+                // Find the shift whose startTime is closest to this record's checkIn time
+                let bestShift: any = null;
+                let minDiff = Infinity;
+                for (const sid of allShiftIds) {
+                    const s = shiftStore.shifts.find(sh => sh.id === sid);
+                    if (!s?.startTime) continue;
+                    const [sH, sM] = s.startTime.split(':').map(Number);
+                    const diff = Math.abs(checkInMins - (sH * 60 + sM));
+                    if (diff < minDiff) { minDiff = diff; bestShift = s; }
+                }
+
+                if (bestShift?.endTime) {
+                    const [eH, eM] = bestShift.endTime.split(':').map(Number);
                     const expectedEnd = new Date(checkInDate);
                     expectedEnd.setHours(eH, eM, 0, 0);
-                    // Overnight shift: end next day
+                    // Handle overnight shift (end time before start time)
                     if (expectedEnd <= checkInDate) expectedEnd.setDate(expectedEnd.getDate() + 1);
-                    // Only count if shift end has already passed
+                    // Only count if this shift has already ended
                     if (expectedEnd <= new Date()) {
-                        const durationMs = expectedEnd.getTime() - checkInDate.getTime();
-                        data.totalRealHours += Math.max(0, durationMs / 3600000);
+                        data.totalRealHours += Math.max(0, (expectedEnd.getTime() - checkInDate.getTime()) / 3600000);
                     }
                 }
             }
