@@ -116,11 +116,17 @@ export function TabPayroll({ filteredRecords, dateStart, dateEnd }: TabPayrollPr
             }
         });
 
-        return Array.from(map.values()).map(data => ({
-            ...data,
-            daysCount: data.uniqueDaysWorked.size,
-            finalPayment: data.totalRealHours * data.hourlyRate,
-        })).sort((a, b) => b.totalRealHours - a.totalRealHours);
+        return Array.from(map.values()).map(data => {
+            // Round to 2 decimal places so displayed hours = hours used in payment calculation
+            // This ensures: what the collaborator sees × valor/hora = repasse total (no hidden decimals)
+            const horasExibidas = Math.round(data.totalRealHours * 100) / 100;
+            return {
+                ...data,
+                totalRealHours: horasExibidas,
+                daysCount: data.uniqueDaysWorked.size,
+                finalPayment: Math.round(horasExibidas * data.hourlyRate * 100) / 100,
+            };
+        }).sort((a, b) => b.totalRealHours - a.totalRealHours);
     }, [filteredRecords, providerStore.providers, shiftStore.shifts]);
 
     const grandTotal = payrollData.reduce((acc, r) => acc + r.finalPayment, 0);
