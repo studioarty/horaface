@@ -8,20 +8,22 @@ const DIST_DIR = 'dist';
 // ── 1. Recriar zip a partir de dist/ ──────────────────────────────────────
 function createZip() {
   if (fs.existsSync(ZIP_PATH)) fs.unlinkSync(ZIP_PATH);
-  const py = [
-    `import zipfile, os`,
-    `skip_ext = {'.exe','.bat','.sh','.tar','.img','.msi','.dmg'}`,
-    `z = zipfile.ZipFile('${ZIP_PATH}', 'w', zipfile.ZIP_DEFLATED)`,
-    `for root, dirs, files in os.walk('${DIST_DIR}'):`,
-    `    for f in files:`,
-    `        ext = os.path.splitext(f)[1].lower()`,
-    `        if ext in skip_ext: continue`,
-    `        full = os.path.join(root, f)`,
-    `        z.write(full, os.path.relpath(full, '${DIST_DIR}'))`,
-    `z.close()`,
-    `print('Zip OK:', round(os.path.getsize('${ZIP_PATH}')/(1024*1024),1), 'MB')`
-  ].join('; ');
-  execSync(`python -c "${py}"`, { stdio: 'inherit' });
+  const py = `
+import zipfile, os
+skip_ext = {'.exe','.bat','.sh','.tar','.img','.msi','.dmg'}
+z = zipfile.ZipFile('${ZIP_PATH}', 'w', zipfile.ZIP_DEFLATED)
+for root, dirs, files in os.walk('${DIST_DIR}'):
+    for f in files:
+        ext = os.path.splitext(f)[1].lower()
+        if ext in skip_ext: continue
+        full = os.path.join(root, f)
+        z.write(full, os.path.relpath(full, '${DIST_DIR}'))
+z.close()
+print('Zip OK:', round(os.path.getsize('${ZIP_PATH}')/(1024*1024),1), 'MB')
+  `.trim();
+  fs.writeFileSync('temp_zip.py', py);
+  execSync('python temp_zip.py', { stdio: 'inherit' });
+  fs.unlinkSync('temp_zip.py');
 }
 
 // ── 2. Enviar e extrair no servidor ───────────────────────────────────────
