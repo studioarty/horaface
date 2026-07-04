@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teste - Emitir Base de Cálculo | HoraFace</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background:#030712; color:#e2e8f0; min-height:100vh; padding:20px; }
+    .container { max-width:400px; margin:0 auto; }
+    h1 { font-size:20px; font-weight:700; text-align:center; margin-bottom:8px; }
+    h1 span { color:#22d3ee; }
+    .subtitle { text-align:center; font-size:12px; color:#64748b; margin-bottom:24px; }
+    .version { text-align:center; font-size:10px; color:#059669; background:#064e3b33; padding:6px 12px; border-radius:8px; margin-bottom:20px; border:1px solid #059669; }
+    .card { background:#0f172a; border:1px solid #1e293b; border-radius:16px; padding:20px; margin-bottom:16px; }
+    .card-title { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:#64748b; font-weight:700; margin-bottom:12px; }
+    .stats { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; }
+    .stat { background:#1e293b; border-radius:12px; padding:12px; }
+    .stat-label { font-size:9px; text-transform:uppercase; color:#64748b; font-weight:700; }
+    .stat-value { font-size:22px; font-weight:700; margin-top:4px; }
+    .cyan { color:#22d3ee; }
+    .green { color:#34d399; }
+    .btn-nf {
+      width:100%; display:flex; align-items:center; justify-content:center; gap:10px;
+      padding:16px; border-radius:16px; border:1px solid rgba(34,211,238,0.3);
+      background: linear-gradient(135deg, rgba(8,145,178,0.3), rgba(20,184,166,0.3));
+      color:#22d3ee; font-size:16px; font-weight:700; cursor:pointer;
+      transition: all 0.2s; margin-bottom:16px;
+    }
+    .btn-nf:active { transform:scale(0.97); }
+    .btn-nf:hover { background: linear-gradient(135deg, rgba(8,145,178,0.5), rgba(20,184,166,0.5)); }
+    .btn-clear {
+      width:100%; padding:12px; border-radius:12px; border:1px solid #dc2626;
+      background:#dc262620; color:#f87171; font-size:13px; font-weight:600;
+      cursor:pointer; text-align:center; margin-bottom:12px;
+    }
+    .btn-clear:active { transform:scale(0.97); }
+    .log { background:#0f172a; border:1px solid #1e293b; border-radius:12px; padding:12px; font-size:11px; color:#64748b; font-family:monospace; max-height:200px; overflow-y:auto; }
+    .log-entry { margin-bottom:4px; padding:2px 0; border-bottom:1px solid #1e293b22; }
+    .log-ok { color:#34d399; }
+    .log-warn { color:#fbbf24; }
+    .log-err { color:#f87171; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Hora<span>Face</span></h1>
+    <p class="subtitle">Página de Teste — Emitir Base de Cálculo</p>
+    <div class="version">✅ VERSÃO: 2026.07.04.v2 — Se você vê isso, o servidor está atualizado!</div>
+
+    <div class="card">
+      <div class="card-title">Simulação do Dashboard do Colaborador</div>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-label">⏱ Horas no Mês</div>
+          <div class="stat-value cyan">21.03<span style="font-size:12px;color:#64748b">h</span></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">💰 Faturamento Est.</div>
+          <div class="stat-value green">R$<span style="font-size:12px;color:#64748b"> </span>234,91</div>
+        </div>
+      </div>
+
+      <!-- BOTÃO PRINCIPAL -->
+      <button class="btn-nf" onclick="emitirBaseCalculo()">
+        🖨️ <span>🧾 Emitir Base de Cálculo</span>
+      </button>
+    </div>
+
+    <!-- Diagnóstico -->
+    <div class="card">
+      <div class="card-title">🔧 Diagnóstico do PWA (para o admin)</div>
+      <button class="btn-clear" onclick="limparTudo()">🗑️ Forçar Limpeza Total do Cache</button>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+
+  <script>
+    const logEl = document.getElementById('log');
+    function log(msg, type) {
+      const cls = type === 'ok' ? 'log-ok' : type === 'warn' ? 'log-warn' : type === 'err' ? 'log-err' : '';
+      logEl.innerHTML += `<div class="log-entry ${cls}">${new Date().toLocaleTimeString('pt-BR')} — ${msg}</div>`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // Diagnóstico automático
+    (async () => {
+      log('Iniciando diagnóstico...');
+
+      // 1. Verificar SWs registrados
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        log(`Service Workers registrados: ${regs.length}`, regs.length > 0 ? 'warn' : 'ok');
+        regs.forEach(r => log(`  SW: ${r.scope} | status: ${r.active ? 'ativo' : 'inativo'}`, 'warn'));
+      } else {
+        log('Service Worker não suportado', 'err');
+      }
+
+      // 2. Verificar caches
+      const keys = await caches.keys();
+      log(`Caches armazenados: ${keys.length}`, keys.length > 0 ? 'warn' : 'ok');
+      keys.forEach(k => log(`  Cache: ${k}`, 'warn'));
+
+      // 3. Verificar localStorage
+      const ver = localStorage.getItem('horaface_version');
+      log(`Versão no localStorage: ${ver || 'NENHUMA'}`, ver ? 'ok' : 'warn');
+
+      log('Diagnóstico concluído.', 'ok');
+    })();
+
+    // Limpar tudo
+    async function limparTudo() {
+      log('🗑️ Limpando TUDO...', 'warn');
+
+      // Desregistrar SWs
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const reg of regs) {
+          await reg.unregister();
+          log(`  SW desregistrado: ${reg.scope}`, 'ok');
+        }
+      }
+
+      // Limpar caches
+      const keys = await caches.keys();
+      for (const key of keys) {
+        await caches.delete(key);
+        log(`  Cache deletado: ${key}`, 'ok');
+      }
+
+      // Limpar versão
+      localStorage.removeItem('horaface_version');
+      log('  localStorage limpo', 'ok');
+
+      log('✅ TUDO LIMPO! Agora acesse compositor.sbs/meu-ponto — o botão vai aparecer.', 'ok');
+    }
+
+    // Emitir Base de Cálculo (teste)
+    function emitirBaseCalculo() {
+      const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Base de Cálculo – Teste</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; color:#111; background:#fff; padding:40px; max-width:800px; margin:auto; }
+    @media print { body { padding:20px; } .no-print { display:none!important; } }
+    .header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #111; padding-bottom:16px; margin-bottom:24px; }
+    .logo { font-size:28px; font-weight:900; letter-spacing:-1px; color:#059669; }
+    .logo span { color:#111; }
+    .meta { text-align:right; font-size:12px; color:#6b7280; }
+    .section { margin-bottom:20px; }
+    .section h2 { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#6b7280; margin-bottom:8px; }
+    .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .info-item { background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; }
+    .info-item .label { font-size:10px; text-transform:uppercase; color:#9ca3af; margin-bottom:2px; }
+    .info-item .value { font-size:14px; font-weight:600; color:#111; }
+    .total-box { background:#f0fdf4; border:2px solid #059669; border-radius:10px; padding:16px 20px; display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
+    .total-box .label { font-size:13px; color:#6b7280; }
+    .total-box .amount { font-size:28px; font-weight:900; color:#059669; }
+    .footer { margin-top:32px; display:flex; justify-content:space-between; align-items:flex-end; }
+    .sign-area { border-top:1px solid #111; padding-top:8px; font-size:12px; color:#6b7280; min-width:200px; text-align:center; }
+    .print-btn { background:#059669; color:#fff; border:none; padding:10px 24px; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; margin-bottom:24px; }
+  </style>
+</head>
+<body>
+  <button class="no-print print-btn" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+  <div class="header">
+    <div>
+      <div class="logo">Hora<span>Face</span></div>
+      <div style="font-size:12px;color:#6b7280;margin-top:4px">Sistema de Marcação de Hora</div>
+      <h1 style="font-size:18px;margin-top:12px">BASE DE CÁLCULO – NOTA DE SERVIÇO</h1>
+    </div>
+    <div class="meta">
+      <div>Emitida em: ${new Date().toLocaleDateString('pt-BR')}</div>
+      <div style="margin-top:4px">Hora: ${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
+    </div>
+  </div>
+  <div class="section">
+    <h2>Dados do Colaborador</h2>
+    <div class="info-grid">
+      <div class="info-item" style="grid-column:1/-1">
+        <div class="label">Nome do Colaborador</div>
+        <div class="value" style="font-size:18px">Sueli (TESTE)</div>
+      </div>
+      <div class="info-item">
+        <div class="label">Período de Apuração</div>
+        <div class="value">julho de 2026</div>
+      </div>
+      <div class="info-item">
+        <div class="label">Total de Horas</div>
+        <div class="value">21.03h</div>
+      </div>
+      <div class="info-item">
+        <div class="label">Taxa Horária</div>
+        <div class="value">R$ 11,17/h</div>
+      </div>
+    </div>
+  </div>
+  <div class="total-box">
+    <div>
+      <div class="label">Composição do Valor</div>
+      <div style="font-size:13px;color:#374151;margin-top:4px">21.03h × R$ 11,17/h</div>
+    </div>
+    <div>
+      <div class="label" style="text-align:right">Valor Total a Receber</div>
+      <div class="amount">R$ 234,91</div>
+    </div>
+  </div>
+  <div class="footer">
+    <div class="sign-area">Assinatura do Colaborador</div>
+    <div class="sign-area">Assinatura do Responsável</div>
+  </div>
+  <div style="margin-top:32px;text-align:center;font-size:11px;color:#d1d5db;border-top:1px solid #e5e7eb;padding-top:16px">
+    ✅ TESTE OK — Documento gerado pelo Sistema HoraFace · ${new Date().toLocaleString('pt-BR')}
+  </div>
+</body>
+</html>`;
+      const w = window.open('', '_blank', 'width=900,height=700');
+      if (w) { w.document.write(html); w.document.close(); }
+    }
+  </script>
+</body>
+</html>
