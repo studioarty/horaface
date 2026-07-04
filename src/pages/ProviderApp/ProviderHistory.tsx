@@ -80,24 +80,34 @@ export default function ProviderHistory() {
       return acc + (new Date(r.checkOut).getTime() - new Date(r.checkIn).getTime()) / 3600000;
     }, 0), [monthRecords]);
 
+  // Helper: data LOCAL (evita bug de virada de dia UTC)
+  const localDateKey = (iso: string) => {
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
   const totalDays = useMemo(() =>
-    new Set(monthRecords.map((r: any) => new Date(r.checkIn).toISOString().split('T')[0])).size,
+    new Set(monthRecords.map((r: any) => localDateKey(r.checkIn))).size,
     [monthRecords]);
 
   const totalValue = totalHours * (user?.hourlyRate || 0);
 
-  // Agrupa por dia para o resumo mensal
+  // Agrupa por dia LOCAL para o resumo mensal
   const byDay = useMemo(() => {
     const map = new Map<string, any[]>();
     [...monthRecords].reverse().forEach((r: any) => {
-      const day = new Date(r.checkIn).toISOString().split('T')[0];
+      const day = localDateKey(r.checkIn);
       if (!map.has(day)) map.set(day, []);
       map.get(day)!.push(r);
     });
-    return Array.from(map.entries()).reverse(); // mais recente primeiro
+    return Array.from(map.entries()).reverse();
   }, [monthRecords]);
 
   const fmt = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const fmtDateKey = (dateKey: string) => {
+    const [y, m, d] = dateKey.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  };
 
   if (loading) {
     return (
@@ -305,10 +315,10 @@ export default function ProviderHistory() {
                     <div className="flex items-center justify-between mb-2.5">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] uppercase text-slate-500 font-bold">
-                          {dateObj.toLocaleDateString('pt-BR', { weekday: 'short' })}
+                          {(() => { const [y,m,d] = day.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('pt-BR',{weekday:'short'}); })()}
                         </span>
                         <span className="text-sm font-bold text-slate-200">
-                          {dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                          {fmtDateKey(day)}
                         </span>
                       </div>
                       <span className="text-[11px] font-mono text-cyan-400 font-bold">

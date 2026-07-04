@@ -396,18 +396,27 @@ const MobileKiosk = () => {
       return acc + (new Date(r.checkOut).getTime() - new Date(r.checkIn).getTime()) / 3600000;
     }, 0), [historyMonthRecords]);
 
+  // Helper: data LOCAL do check-in (evita bug de virada de dia UTC)
+  const localDateKey = (iso: string) => {
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
   const historyTotalDays = useMemo(() =>
-    new Set(historyMonthRecords.map(r => new Date(r.checkIn).toISOString().split('T')[0])).size,
+    new Set(historyMonthRecords.map(r => localDateKey(r.checkIn))).size,
     [historyMonthRecords]);
 
   const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  const fmtDate = (dateKey: string) => {
+    const [y, m, d] = dateKey.split('-').map(Number);
+    return `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}`;
+  };
 
-  // Group history records by day for resumo
+  // Agrupa por dia LOCAL (não UTC) para evitar virada de data errada
   const historyByDay = useMemo(() => {
     const map = new Map<string, TimeRecord[]>();
     [...historyMonthRecords].reverse().forEach(r => {
-      const day = new Date(r.checkIn).toISOString().split('T')[0];
+      const day = localDateKey(r.checkIn);
       if (!map.has(day)) map.set(day, []);
       map.get(day)!.push(r);
     });
@@ -745,7 +754,7 @@ const MobileKiosk = () => {
                   return (
                     <div key={day} className="bg-slate-900/40 border border-slate-800 rounded-xl p-3">
                       <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-bold text-slate-200">{fmtDate(day+'T12:00:00')}</span>
+                        <span className="text-sm font-bold text-slate-200">{fmtDate(day)}</span>
                         <span className="text-[11px] text-cyan-400 font-mono font-bold">{dayH > 0 ? `${dayH.toFixed(1)}h` : '—'}</span>
                       </div>
                       <div className="space-y-1">
