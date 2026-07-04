@@ -38,10 +38,16 @@ import { useToast } from '@/hooks/use-toast';
 import type { ReportPeriod, ReportData } from '@/types';
 
 export default function Reports() {
-  const [activeTab, setActiveTab] = useState('timebank');
-  const [period, setPeriod] = useState<ReportPeriod>('weekly');
+  const [activeTab, setActiveTab] = useState('payroll');
+  const [period, setPeriod] = useState<ReportPeriod | 'custom'>('monthly');
   const [selectedProvider, setSelectedProvider] = useState<string>('all');
   const [isExporting, setIsExporting] = useState(false);
+
+  // Custom date range
+  const todayStr = new Date().toISOString().split('T')[0];
+  const firstOfMonth = (() => { const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0]; })();
+  const [customStart, setCustomStart] = useState<string>(firstOfMonth);
+  const [customEnd, setCustomEnd] = useState<string>(todayStr);
 
   const timeStore = useTimeStore();
   const providerStore = useProviderStore();
@@ -49,26 +55,22 @@ export default function Reports() {
   const { toast } = useToast();
 
   const dateRange = useMemo(() => {
+    if (period === 'custom') {
+      return { start: customStart, end: customEnd };
+    }
     const now = new Date();
     const end = now.toISOString().split('T')[0];
     let start: string;
-
     if (period === 'weekly') {
-      const d = new Date(now);
-      d.setDate(d.getDate() - 7);
-      start = d.toISOString().split('T')[0];
+      const d = new Date(now); d.setDate(d.getDate() - 7); start = d.toISOString().split('T')[0];
     } else if (period === 'biweekly') {
-      const d = new Date(now);
-      d.setDate(d.getDate() - 15);
-      start = d.toISOString().split('T')[0];
+      const d = new Date(now); d.setDate(d.getDate() - 15); start = d.toISOString().split('T')[0];
     } else {
-      const d = new Date(now);
-      d.setDate(d.getDate() - 30);
-      start = d.toISOString().split('T')[0];
+      // monthly: current month
+      const d = new Date(now); d.setDate(1); start = d.toISOString().split('T')[0];
     }
-
     return { start, end };
-  }, [period]);
+  }, [period, customStart, customEnd]);
 
   const filteredRecords = useMemo(() => {
     let recs = timeStore.records.filter(
@@ -282,10 +284,11 @@ export default function Reports() {
     }, 400);
   };
 
-  const periodLabel: Record<ReportPeriod, string> = {
+  const periodLabel: Record<string, string> = {
     weekly: 'Semanal (7 dias)',
     biweekly: 'Quinzenal (15 dias)',
-    monthly: 'Mensal (30 dias)',
+    monthly: 'Mês Atual',
+    custom: 'Período Personalizado',
   };
 
   return (
@@ -323,23 +326,46 @@ export default function Reports() {
       {/* Filters */}
       <div className="hud-card mb-4 sm:mb-6 rounded-lg p-3 sm:p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          {/* Period selector */}
           <div className="flex items-center gap-2">
             <Calendar className="size-4 shrink-0 text-primary" />
             <Select
               value={period}
-              onValueChange={(v) => setPeriod(v as ReportPeriod)}
+              onValueChange={(v) => setPeriod(v as any)}
             >
               <SelectTrigger className="w-full sm:w-52 border-border bg-elevated">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="border-border bg-surface">
+                <SelectItem value="monthly">Mês Atual</SelectItem>
                 <SelectItem value="weekly">Semanal (7 dias)</SelectItem>
                 <SelectItem value="biweekly">Quinzenal (15 dias)</SelectItem>
-                <SelectItem value="monthly">Mensal (30 dias)</SelectItem>
+                <SelectItem value="custom">Período Personalizado</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
+          {/* Custom date range inputs */}
+          {period === 'custom' && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-text-muted">De:</span>
+              <input
+                type="date"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="border border-border bg-elevated rounded-md px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <span className="text-xs text-text-muted">Até:</span>
+              <input
+                type="date"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="border border-border bg-elevated rounded-md px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          )}
+
+          {/* Collaborator filter */}
           <div className="flex items-center gap-2">
             <Users className="size-4 shrink-0 text-primary" />
             <Select
@@ -350,7 +376,7 @@ export default function Reports() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="border-border bg-surface">
-                <SelectItem value="all">Todos os prestadores</SelectItem>
+                <SelectItem value="all">Todos os colaboradores</SelectItem>
                 {providerStore.providers.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.name}
@@ -434,7 +460,7 @@ export default function Reports() {
           </TabsContent>
 
           <TabsContent value="payroll" className="mt-0">
-            <TabPayroll filteredRecords={filteredRecords} />
+            <TabPayroll filteredRecords={filteredRecords} dateStart={dateRange.start} dateEnd={dateRange.end} />
           </TabsContent>
 
           <TabsContent value="audit" className="mt-0">
