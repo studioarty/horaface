@@ -221,6 +221,21 @@ export async function fetchTimeRecords(): Promise<TimeRecord[]> {
   return (data || []).map(mapRecordFromDB);
 }
 
+export async function fetchRecordsByProvider(providerId: string, limit = 40): Promise<TimeRecord[]> {
+  const { data, error } = await supabase
+    .from("time_records")
+    .select("*")
+    .eq("provider_id", providerId)
+    .order("check_in", { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.error("fetchRecordsByProvider error:", error);
+    return [];
+  }
+  return (data || []).map(mapRecordFromDB);
+}
+
+
 export async function fetchTodayRecords(): Promise<TimeRecord[]> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);

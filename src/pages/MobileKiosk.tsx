@@ -1,17 +1,22 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Camera, MapPin, CheckCircle, XCircle, AlertTriangle, UserCheck, HelpCircle, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Camera, MapPin, CheckCircle, AlertTriangle, UserCheck, HelpCircle, RefreshCw, Clock, FileText, BarChart3, TrendingUp, Calendar, ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import Webcam from 'react-webcam';
-import type { Provider } from '@/types';
+import type { Provider, TimeRecord } from '@/types';
 import { fetchProviders, insertCheckIn, insertCheckOut } from '@/lib/api';
-import { fetchKioskSettings, fetchShifts } from '@/lib/api.supabase';
+import { fetchKioskSettings, fetchShifts, fetchRecordsByProvider } from '@/lib/api.supabase';
 import { useTimeStore } from '@/stores/useTimeStore';
 import { haversineDistance } from '@/lib/geoUtils';
 import { detectFace, loadModels, matchFace, capturePhoto } from '@/lib/faceApi';
 import { greetCollaborator } from '@/lib/azureTTS';
 
+type MainTab = 'scan' | 'history';
+
 const MobileKiosk = () => {
   const timeStore = useTimeStore();
+
+  // Bottom tab navigation
+  const [mainTab, setMainTab] = useState<MainTab>('scan');
   
   // App States: 'loading' | 'ready' | 'confirm' | 'success' | 'gps_error' | 'shift_error'
   const [appState, setAppState] = useState<'loading' | 'ready' | 'confirm' | 'success' | 'gps_error' | 'shift_error'>('loading');
@@ -30,6 +35,12 @@ const MobileKiosk = () => {
   const [lastOpType, setLastOpType] = useState<'in' | 'out'>('in');
   const [errorMessage, setErrorMessage] = useState('');
   const [capturedBiometricPhoto, setCapturedBiometricPhoto] = useState<string | undefined>(undefined);
+
+  // History tab state
+  const [historyProvider, setHistoryProvider] = useState<Provider | null>(null);
+  const [historyRecords, setHistoryRecords] = useState<TimeRecord[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historySubTab, setHistorySubTab] = useState<'extrato' | 'resumo'>('extrato');
 
   // GPS State (Running in background)
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -98,6 +109,7 @@ const MobileKiosk = () => {
   }, []);
 
   // 3. Ultra-fast Face Scan Loop (With strict processingRef check)
+  // Runs on both 'scan' tab (marcação) and 'history' tab (identify to view records)
   useEffect(() => {
     let isRunning = true;
     let scanTimer: NodeJS.Timeout;
@@ -149,15 +161,29 @@ const MobileKiosk = () => {
     };
   }, [appState, modelsLoaded, providersList]);
 
-  // 4. Handle Match: captura a foto ANTES de mudar o estado (enquanto a câmera ainda está ativa)
-  // Isso garante que o video element ainda está no DOM quando capturePhoto é chamado
+  // 4. Handle Match: branches based on mainTab
   const handleMatchedGuy = async (guy: Provider) => {
-    // 📸 CAPTURA A FOTO AQUI — câmera ainda está ativa (appState ainda é 'ready')
+    if (mainTab === 'history') {
+      // History mode: don't confirm, just load their records
+      setHistoryProvider(guy);
+      setHistoryLoading(true);
+      setAppState('confirm'); // pause the camera
+      try {
+        const recs = await fetchRecordsByProvider(guy.id);
+        setHistoryRecords(recs);
+      } catch {
+        setHistoryRecords([]);
+      } finally {
+        setHistoryLoading(false);
+      }
+      return;
+    }
+
+    // Scan mode: existing check-in / check-out flow
     const photo = captureCurrentFrame();
     setCapturedBiometricPhoto(photo);
-
     setMatchedProvider(guy);
-    setAppState('confirm'); // Só AGORA muda o estado (desmonta a câmera)
+    setAppState('confirm');
 
     try {
       const openRecord = await timeStore.fetchActiveRecordFromDB(guy.id);
@@ -332,9 +358,65 @@ const MobileKiosk = () => {
     setAppState('ready');
   };
 
+  const clearHistory = () => {
+    setHistoryProvider(null);
+    setHistoryRecords([]);
+    setHistoryLoading(false);
+    processingRef.current = false;
+    setAppState('ready');
+  };
+
+  const switchTab = (tab: MainTab) => {
+    setMainTab(tab);
+    if (tab === 'history') {
+      // Clear any previous history and start fresh scan
+      setHistoryProvider(null);
+      setHistoryRecords([]);
+      processingRef.current = false;
+      if (appState !== 'ready') setAppState('ready');
+    } else {
+      // Back to scan tab — reset scan state
+      processingRef.current = false;
+      if (appState !== 'ready' && appState !== 'loading') setAppState('ready');
+    }
+  };
+
+  // History computed values
+  const now = new Date();
+  const historyMonthRecords = useMemo(() => {
+    const m = now.getMonth(); const y = now.getFullYear();
+    return historyRecords.filter(r => {
+      const d = new Date(r.checkIn); return d.getMonth() === m && d.getFullYear() === y;
+    });
+  }, [historyRecords]);
+
+  const historyTotalHours = useMemo(() =>
+    historyMonthRecords.reduce((acc, r) => {
+      if (!r.checkOut) return acc;
+      return acc + (new Date(r.checkOut).getTime() - new Date(r.checkIn).getTime()) / 3600000;
+    }, 0), [historyMonthRecords]);
+
+  const historyTotalDays = useMemo(() =>
+    new Set(historyMonthRecords.map(r => new Date(r.checkIn).toISOString().split('T')[0])).size,
+    [historyMonthRecords]);
+
+  const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+
+  // Group history records by day for resumo
+  const historyByDay = useMemo(() => {
+    const map = new Map<string, TimeRecord[]>();
+    [...historyMonthRecords].reverse().forEach(r => {
+      const day = new Date(r.checkIn).toISOString().split('T')[0];
+      if (!map.has(day)) map.set(day, []);
+      map.get(day)!.push(r);
+    });
+    return Array.from(map.entries()).reverse();
+  }, [historyMonthRecords]);
+
   // UI rendering
   return (
-    <div className="min-h-[100dvh] bg-[#020617] relative flex flex-col items-center justify-center p-4 overflow-hidden font-sans select-none">
+    <div className="min-h-[100dvh] bg-[#020617] relative flex flex-col items-center justify-center p-4 pb-20 overflow-hidden font-sans select-none">
       
       {/* Ambience Background */}
       <div className="absolute top-[-15%] left-[-15%] w-[60vw] h-[60vw] bg-teal-900/20 rounded-full blur-[130px] mix-blend-screen pointer-events-none"></div>
@@ -558,7 +640,7 @@ const MobileKiosk = () => {
         </div>
 
         {/* Footer */}
-        <div className="py-3 px-6 text-center bg-transparent border-t border-white/5 flex items-center justify-between">
+        <div className="py-2 px-6 text-center bg-transparent border-t border-white/5 flex items-center justify-between">
           <p className="text-[9px] text-slate-600 font-mono tracking-wider">HORAFACE MOBILE v25</p>
           <div className="flex items-center gap-1.5">
             <div className="size-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
@@ -567,6 +649,153 @@ const MobileKiosk = () => {
         </div>
 
       </div>
+
+      {/* ── HISTORY OVERLAY (shown when historyProvider loaded) ── */}
+      {mainTab === 'history' && historyProvider && !historyLoading && (
+        <div className="fixed inset-0 z-30 bg-[#020617] overflow-y-auto pb-24" style={{top:0}}>
+          {/* Back header */}
+          <div className="sticky top-0 z-10 bg-[#020617]/95 backdrop-blur border-b border-white/5 px-4 py-3 flex items-center gap-3">
+            <button onClick={clearHistory} className="size-8 rounded-lg bg-slate-800/60 flex items-center justify-center border border-slate-700/50 text-slate-400 hover:text-slate-200 transition-colors">
+              <ChevronLeft className="size-4" />
+            </button>
+            {historyProvider.photo ? (
+              <img src={historyProvider.photo} className="size-8 rounded-lg object-cover" />
+            ) : (
+              <div className="size-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400">
+                <span className="text-xs font-bold">{historyProvider.name[0]}</span>
+              </div>
+            )}
+            <div>
+              <p className="text-sm font-bold text-slate-100">{historyProvider.name}</p>
+              <p className="text-[9px] text-slate-500 uppercase tracking-wider">Meus Comprovantes</p>
+            </div>
+          </div>
+
+          <div className="p-4 space-y-4">
+            {/* Sub-tabs */}
+            <div className="flex gap-1 bg-slate-900/60 rounded-xl p-1 border border-slate-800">
+              {(['extrato','resumo'] as const).map(t => (
+                <button key={t} onClick={() => setHistorySubTab(t)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    historySubTab === t ? 'bg-cyan-900/50 text-cyan-300 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.25)]' : 'text-slate-500'
+                  }`}>
+                  {t === 'extrato' ? '📄 Extrato' : '📊 Resumo do Mês'}
+                </button>
+              ))}
+            </div>
+
+            {/* ── EXTRATO ── */}
+            {historySubTab === 'extrato' && (
+              <div className="space-y-2">
+                {historyRecords.length === 0 ? (
+                  <div className="text-center py-10 text-slate-500 text-sm">Nenhum registro encontrado.</div>
+                ) : historyRecords.map(r => {
+                  const dIn = new Date(r.checkIn);
+                  const hours = r.checkOut ? (new Date(r.checkOut).getTime() - dIn.getTime()) / 3600000 : 0;
+                  return (
+                    <div key={r.id} className="bg-slate-900/40 border border-slate-800 rounded-xl p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col items-center min-w-[32px]">
+                          <span className="text-[9px] text-slate-500 uppercase">{dIn.toLocaleDateString('pt-BR',{weekday:'short'})}</span>
+                          <span className="text-lg font-bold text-slate-100 leading-none">{dIn.getDate().toString().padStart(2,'0')}</span>
+                          <span className="text-[9px] text-slate-600">{dIn.toLocaleDateString('pt-BR',{month:'short'})}</span>
+                        </div>
+                        <div className="h-8 w-px bg-slate-800" />
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950/50 text-emerald-400 border border-emerald-900/30 font-mono">↑ {fmtTime(r.checkIn)}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-950/50 text-rose-400 border border-rose-900/30 font-mono">↓ {r.checkOut ? fmtTime(r.checkOut) : '...'}</span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
+                            <Clock className="size-2.5" />{r.checkOut ? `${hours.toFixed(1)}h` : 'Em andamento'}
+                          </span>
+                        </div>
+                      </div>
+                      {r.checkOut && (
+                        <span className="text-[10px] font-mono text-cyan-400">{hours.toFixed(1)}h</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ── RESUMO DO MÊS ── */}
+            {historySubTab === 'resumo' && (
+              <div className="space-y-4">
+                {/* Totais */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-3">
+                    <div className="flex items-center gap-1 mb-1"><Clock className="size-3 text-cyan-400" /><span className="text-[9px] text-slate-500 uppercase font-bold">Horas</span></div>
+                    <span className="text-lg font-bold text-cyan-300 font-mono">{historyTotalHours.toFixed(1)}h</span>
+                  </div>
+                  <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-3">
+                    <div className="flex items-center gap-1 mb-1"><Calendar className="size-3 text-emerald-400" /><span className="text-[9px] text-slate-500 uppercase font-bold">Dias</span></div>
+                    <span className="text-lg font-bold text-emerald-300 font-mono">{historyTotalDays}d</span>
+                  </div>
+                  <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-3">
+                    <div className="flex items-center gap-1 mb-1"><TrendingUp className="size-3 text-amber-400" /><span className="text-[9px] text-slate-500 uppercase font-bold">Turnos</span></div>
+                    <span className="text-lg font-bold text-amber-300 font-mono">{historyMonthRecords.length}</span>
+                  </div>
+                </div>
+                <p className="text-center text-[11px] text-slate-500 capitalize">{now.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</p>
+                {/* Por dia */}
+                {historyByDay.map(([day, recs]) => {
+                  const dayH = recs.reduce((a,r) => r.checkOut ? a + (new Date(r.checkOut).getTime()-new Date(r.checkIn).getTime())/3600000 : a, 0);
+                  return (
+                    <div key={day} className="bg-slate-900/40 border border-slate-800 rounded-xl p-3">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-bold text-slate-200">{fmtDate(day+'T12:00:00')}</span>
+                        <span className="text-[11px] text-cyan-400 font-mono font-bold">{dayH > 0 ? `${dayH.toFixed(1)}h` : '—'}</span>
+                      </div>
+                      <div className="space-y-1">
+                        {recs.map(r => (
+                          <div key={r.id} className="flex gap-2">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950/50 text-emerald-400 border border-emerald-900/30 font-mono">↑ {fmtTime(r.checkIn)}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-950/50 text-rose-400 border border-rose-900/30 font-mono">↓ {r.checkOut ? fmtTime(r.checkOut) : '...'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── HISTORY LOADING ── */}
+      {mainTab === 'history' && historyLoading && (
+        <div className="fixed inset-0 z-30 bg-[#020617]/90 flex flex-col items-center justify-center gap-4">
+          <div className="size-10 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-slate-400">Carregando seu extrato...</p>
+        </div>
+      )}
+
+      {/* ── BOTTOM NAVIGATION BAR ── */}
+      {appState !== 'loading' && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-white/5 flex">
+          <button
+            onClick={() => switchTab('scan')}
+            className={`flex-1 flex flex-col items-center gap-1 py-3 transition-colors ${
+              mainTab === 'scan' ? 'text-emerald-400' : 'text-slate-600 hover:text-slate-400'
+            }`}
+          >
+            <Camera className="size-5" />
+            <span className="text-[9px] font-bold uppercase tracking-wider">Marcação</span>
+          </button>
+          <button
+            onClick={() => switchTab('history')}
+            className={`flex-1 flex flex-col items-center gap-1 py-3 transition-colors ${
+              mainTab === 'history' ? 'text-cyan-400' : 'text-slate-600 hover:text-slate-400'
+            }`}
+          >
+            <FileText className="size-5" />
+            <span className="text-[9px] font-bold uppercase tracking-wider">Histórico</span>
+          </button>
+        </div>
+      )}
 
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes scan {
