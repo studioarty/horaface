@@ -437,16 +437,14 @@ export default function ProviderHistory() {
             </div>
           </div>
 
-          {/* Botão Emitir Base de Cálculo */}
-          {monthRecords.some((r: any) => r.checkOut) && (
-            <button
-              onClick={emitirBaseCalculo}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-cyan-900/30 hover:bg-cyan-900/50 border border-cyan-800/50 text-cyan-300 font-semibold text-sm transition-all active:scale-95 shadow-sm"
-            >
-              <Printer className="size-4" />
-              Emitir Base de Cálculo
-            </button>
-          )}
+          {/* Botão Emitir Base de Cálculo (Sempre visível) */}
+          <button
+            onClick={emitirBaseCalculo}
+            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-cyan-900/30 hover:bg-cyan-900/50 border border-cyan-800/50 text-cyan-300 font-semibold text-sm transition-all active:scale-95 shadow-sm"
+          >
+            <Printer className="size-4" />
+            Emitir Base de Cálculo
+          </button>
 
           {/* Período */}
           <div className="text-center">
