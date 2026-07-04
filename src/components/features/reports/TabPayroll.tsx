@@ -117,14 +117,14 @@ export function TabPayroll({ filteredRecords, dateStart, dateEnd }: TabPayrollPr
         });
 
         return Array.from(map.values()).map(data => {
-            // Round to 2 decimal places so displayed hours = hours used in payment calculation
-            // This ensures: what the collaborator sees × valor/hora = repasse total (no hidden decimals)
-            const horasExibidas = Math.round(data.totalRealHours * 100) / 100;
+            // Sempre arredonda para CIMA (nunca prejudica o colaborador)
+            // Ex: 21.0286h → 21.03h | 234.9051 → R$ 234,91
+            const horasExibidas = Math.ceil(data.totalRealHours * 100) / 100;
             return {
                 ...data,
                 totalRealHours: horasExibidas,
                 daysCount: data.uniqueDaysWorked.size,
-                finalPayment: Math.round(horasExibidas * data.hourlyRate * 100) / 100,
+                finalPayment: Math.ceil(horasExibidas * data.hourlyRate * 100) / 100,
             };
         }).sort((a, b) => b.totalRealHours - a.totalRealHours);
     }, [filteredRecords, providerStore.providers, shiftStore.shifts]);
