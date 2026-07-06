@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Camera, MapPin, CheckCircle, AlertTriangle, UserCheck, HelpCircle, RefreshCw, Clock, FileText, BarChart3, TrendingUp, Calendar, ChevronLeft, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import Webcam from 'react-webcam';
@@ -45,6 +45,14 @@ const MobileKiosk = () => {
   // GPS State (Running in background)
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsWatchId, setGpsWatchId] = useState<number | null>(null);
+
+  // ── Alarm State ──────────────────────────────────────────────────────────
+  const [alarmActive, setAlarmActive] = useState(false);
+  const [alarmProviderName, setAlarmProviderName] = useState('');
+  const [alarmSecondsLeft, setAlarmSecondsLeft] = useState(0);
+  const alarmAudioCtxRef = useRef<AudioContext | null>(null);
+  const alarmIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const alarmBeepRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const webcamRef = useRef<Webcam>(null);
   // Synchronous lock to prevent duplicate scans/clicks
@@ -211,6 +219,31 @@ const MobileKiosk = () => {
       return undefined;
     }
   };
+  // ── ALARM FUNCTIONS (before confirmPonto so stopAlarm is accessible) ────
+  const playAlarmBeep = useCallback(() => {
+    try {
+      if (navigator.vibrate) navigator.vibrate([400, 150, 400, 150, 600]);
+      const ctx = alarmAudioCtxRef.current || new (window.AudioContext || (window as any).webkitAudioContext)();
+      alarmAudioCtxRef.current = ctx;
+      if (ctx.state === 'suspended') ctx.resume();
+      const osc1 = ctx.createOscillator(); const gain1 = ctx.createGain();
+      osc1.type = 'square'; osc1.frequency.value = 880; gain1.gain.value = 0.3;
+      osc1.connect(gain1).connect(ctx.destination); osc1.start(ctx.currentTime); osc1.stop(ctx.currentTime + 0.2);
+      const osc2 = ctx.createOscillator(); const gain2 = ctx.createGain();
+      osc2.type = 'square'; osc2.frequency.value = 1100; gain2.gain.value = 0.3;
+      osc2.connect(gain2).connect(ctx.destination); osc2.start(ctx.currentTime + 0.3); osc2.stop(ctx.currentTime + 0.5);
+      const osc3 = ctx.createOscillator(); const gain3 = ctx.createGain();
+      osc3.type = 'square'; osc3.frequency.value = 1320; gain3.gain.value = 0.35;
+      osc3.connect(gain3).connect(ctx.destination); osc3.start(ctx.currentTime + 0.6); osc3.stop(ctx.currentTime + 0.9);
+    } catch (e) { console.warn('Alarm beep failed:', e); }
+  }, []);
+
+  const stopAlarm = useCallback(() => {
+    setAlarmActive(false);
+    if (alarmBeepRef.current) { clearInterval(alarmBeepRef.current); alarmBeepRef.current = null; }
+    if (alarmIntervalRef.current) { clearInterval(alarmIntervalRef.current); alarmIntervalRef.current = null; }
+    localStorage.removeItem('horaface_alarm');
+  }, []);
 
   // 5. Confirm and execute check-in / check-out with validation
   const confirmPonto = async () => {
@@ -314,6 +347,7 @@ const MobileKiosk = () => {
         );
         if (result.success) {
           greetCollaborator('out', matchedProvider.name);
+          stopAlarm(); // Para o alarme ao marcar saída
           setAppState('success');
           toast.success('Saída marcada com sucesso!');
         } else {
@@ -325,6 +359,38 @@ const MobileKiosk = () => {
         greetCollaborator('in', matchedProvider.name);
         setAppState('success');
         toast.success('Entrada marcada com sucesso! Bom trabalho.');
+
+        // ── Configurar alarme de saída ──────────────────────────────
+        const warningMin = liveSettings?.autoCheckoutWarningMinutes ?? 25;
+        const toleranceMin = liveSettings?.autoCheckoutToleranceMinutes ?? 30;
+        // Encontrar turno ativo do colaborador
+        const pShiftIds = matchedProvider.shiftIds?.length > 0
+          ? matchedProvider.shiftIds
+          : matchedProvider.shiftId ? [matchedProvider.shiftId] : [];
+        const pShifts = pShiftIds.map((id: string) => shiftsList.find((s: any) => s.id === id)).filter(Boolean);
+        const nowDate = new Date();
+        const curMin = nowDate.getHours() * 60 + nowDate.getMinutes();
+        const activeShift = pShifts.find((s: any) => {
+          if (!s.startTime || !s.endTime) return false;
+          const [sh, sm] = s.startTime.split(':').map(Number);
+          const [eh, em] = s.endTime.split(':').map(Number);
+          const sMin = sh * 60 + sm - 60;
+          const eMin = eh * 60 + em;
+          return sMin <= eMin ? (curMin >= sMin && curMin <= eMin) : (curMin >= sMin || curMin <= eMin);
+        });
+        if (activeShift) {
+          const [eH, eM] = activeShift.endTime.split(':').map(Number);
+          const alarmTime = new Date(nowDate);
+          alarmTime.setHours(eH, eM + warningMin, 0, 0);
+          const autoCloseTime = new Date(nowDate);
+          autoCloseTime.setHours(eH, eM + toleranceMin, 0, 0);
+          localStorage.setItem('horaface_alarm', JSON.stringify({
+            providerId: matchedProvider.id,
+            providerName: matchedProvider.name,
+            shiftEndTime: alarmTime.toISOString(),
+            autoCloseTime: autoCloseTime.toISOString(),
+          }));
+        }
       }
 
       // Reload records to keep sync in memory
@@ -347,6 +413,55 @@ const MobileKiosk = () => {
       return () => clearTimeout(timer);
     }
   }, [appState]);
+
+  // ── 7. ALARM MONITOR (check every 10 seconds) ──────────────────────────
+  useEffect(() => {
+    const checkAlarm = async () => {
+      const raw = localStorage.getItem('horaface_alarm');
+      if (!raw) { if (alarmActive) stopAlarm(); return; }
+
+      let alarmData: any;
+      try { alarmData = JSON.parse(raw); } catch { localStorage.removeItem('horaface_alarm'); return; }
+
+      const { providerId, providerName, shiftEndTime, autoCloseTime } = alarmData;
+      if (!providerId || !shiftEndTime) return;
+
+      // Check if record is still active (no checkout yet)
+      const stillActive = await timeStore.fetchActiveRecordFromDB(providerId);
+      if (!stillActive) {
+        // Checkout happened (manual or automatic) → stop alarm
+        stopAlarm();
+        return;
+      }
+
+      const now = Date.now();
+      const alarmStart = new Date(shiftEndTime).getTime();
+      const autoClose = new Date(autoCloseTime).getTime();
+
+      if (now >= alarmStart && now < autoClose) {
+        const secsLeft = Math.max(0, Math.round((autoClose - now) / 1000));
+        setAlarmSecondsLeft(secsLeft);
+        setAlarmProviderName(providerName);
+        if (!alarmActive) {
+          setAlarmActive(true);
+          playAlarmBeep();
+          // Repeat beep every 30 seconds
+          alarmBeepRef.current = setInterval(playAlarmBeep, 30000);
+        }
+      } else if (now >= autoClose) {
+        // Auto-close time passed → stop alarm
+        stopAlarm();
+      }
+    };
+
+    checkAlarm();
+    alarmIntervalRef.current = setInterval(checkAlarm, 10000);
+
+    return () => {
+      if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
+      if (alarmBeepRef.current) clearInterval(alarmBeepRef.current);
+    };
+  }, [alarmActive, playAlarmBeep, stopAlarm]);
 
   const resetAppState = () => {
     setMatchedProvider(null);
@@ -991,12 +1106,64 @@ const MobileKiosk = () => {
         </div>
       )}
 
+      {/* ── ALARM OVERLAY ── */}
+      {alarmActive && (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-red-950/95 backdrop-blur-sm" style={{animation: 'alarmPulse 1s ease-in-out infinite'}}>
+          <div className="absolute inset-0 border-[6px] border-red-500 rounded-none" style={{animation: 'alarmBorder 0.8s ease-in-out infinite'}} />
+          
+          <div className="flex flex-col items-center gap-6 px-8 text-center">
+            <div className="size-20 rounded-full bg-red-500/20 border-2 border-red-400 flex items-center justify-center" style={{animation: 'alarmIcon 0.6s ease-in-out infinite'}}>
+              <span className="text-4xl">⚠️</span>
+            </div>
+
+            <div>
+              <h2 className="text-2xl font-black text-red-100 uppercase tracking-wider mb-2">
+                Marque sua Saída!
+              </h2>
+              <p className="text-lg text-red-200 font-semibold">{alarmProviderName}</p>
+            </div>
+
+            <div className="bg-red-900/60 border border-red-700/60 rounded-2xl px-6 py-4 space-y-1">
+              <p className="text-xs text-red-300 uppercase font-bold tracking-widest">Fechamento automático em</p>
+              <p className="text-4xl font-black text-red-100 font-mono">
+                {Math.floor(alarmSecondsLeft / 60)}:{String(alarmSecondsLeft % 60).padStart(2, '0')}
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                stopAlarm();
+                setScanMode('checkin');
+                setAppState('ready');
+              }}
+              className="w-full max-w-xs py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-black text-lg uppercase tracking-wider shadow-2xl shadow-emerald-900/50 active:scale-95 transition-transform"
+            >
+              📸 Registrar Saída Agora
+            </button>
+
+            <p className="text-[10px] text-red-400/60">O alarme para automaticamente ao registrar a saída</p>
+          </div>
+        </div>
+      )}
+
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes scan {
           0% { top: 0%; opacity: 0; }
           10% { opacity: 1; }
           90% { opacity: 1; }
           100% { top: 100%; opacity: 0; }
+        }
+        @keyframes alarmPulse {
+          0%, 100% { background-color: rgba(69, 10, 10, 0.95); }
+          50% { background-color: rgba(127, 29, 29, 0.98); }
+        }
+        @keyframes alarmBorder {
+          0%, 100% { border-color: rgba(239, 68, 68, 0.4); }
+          50% { border-color: rgba(239, 68, 68, 1); }
+        }
+        @keyframes alarmIcon {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.15); }
         }
       `}} />
     </div>
