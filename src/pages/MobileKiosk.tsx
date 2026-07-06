@@ -126,7 +126,7 @@ const MobileKiosk = () => {
     };
     const onVisible = () => { if (document.visibilityState === 'visible') refreshSettings(); };
     document.addEventListener('visibilitychange', onVisible);
-    const interval = setInterval(refreshSettings, 120_000);
+    const interval = setInterval(refreshSettings, 30_000);
     return () => { document.removeEventListener('visibilitychange', onVisible); clearInterval(interval); };
   }, []);
 
