@@ -344,8 +344,8 @@ function main(): void {
     logMsg(count($records) . ' active record(s).');
 
     // ── 3. Providers, shifts, subscriptions ───────────────────────────────
-    $providerIds = array_values(array_unique(array_column($records, 'provider_id')));
-    $idList      = implode(',', $providerIds);
+    $quotedIds = array_map(fn($id) => '"' . $id . '"', $providerIds);
+    $idList    = implode(',', $quotedIds);
 
     $providers = supabaseGet("/rest/v1/providers?id=in.({$idList})&select=id,name,shift_id,shift_ids");
     $shifts    = supabaseGet('/rest/v1/shifts?select=id,start_time,end_time,name');
