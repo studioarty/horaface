@@ -1,343 +1,459 @@
 <?php
 /**
- * HoraFace Push Alarm - Cron Job Script
- * Run every minute via Hostinger cron: php /home/u123/domains/compositor.sbs/public_html/push_alarm.php
- * Checks for overdue shift records and sends push notifications
+ * HoraFace Push Alarm — Cron Job Script
+ *
+ * Run every minute via cron:  php /home/user/public_html/push_alarm.php
+ * Checks for overdue shift records and sends web push notifications.
+ *
+ * Self-contained: NO external dependencies (no composer).
+ * Requires: PHP 7.3+ with openssl and curl extensions.
+ *
+ * Security: Block direct web access via .htaccess:
+ *   <Files "push_alarm.php">
+ *     Require all denied
+ *   </Files>
  */
 
 error_reporting(E_ALL);
+ini_set('display_errors', '1');
 date_default_timezone_set('America/Sao_Paulo');
 
-// ── Config ──────────────────────────────────────────────────────────────────
-$SUPABASE_URL = 'https://ycdzokzdbbxkpvovbrwl.supabase.co';
-$SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljZHpva3pkYmJ4a3B2b3ZicndsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMDM1NDIsImV4cCI6MjA4ODU3OTU0Mn0.tCxOGxWoowH3NBX-mS5L2CY0Kn7BnjTV6Lk8jq_kpCM';
-$VAPID_SUBJECT = 'mailto:admin@compositor.sbs';
-$VAPID_PUBLIC_KEY = 'BMaxuTgj0DINa2QS51FBtZpFYOlQuNe6AAgyqgL0sK2ZDsep7K8O_lPDMZBfa-GPWU6Nb0EXyxS1HoebxmO8L4U';
-$VAPID_PRIVATE_KEY = 'M6Sf8nfVH0g8Pn4JBqSQwEj42eei_JezQ95iRb0LHt0';
+// ── Configuration ─────────────────────────────────────────────────────────
 
-// Lock file to prevent overlapping runs
-$lockFile = __DIR__ . '/.push_alarm.lock';
-if (file_exists($lockFile) && (time() - filemtime($lockFile)) < 50) {
-    exit("Already running.\n");
-}
-file_put_contents($lockFile, time());
-register_shutdown_function(function() use ($lockFile) { @unlink($lockFile); });
+define('SUPABASE_URL', 'https://ycdzokzdbbxkpvovbrwl.supabase.co');
+define('SUPABASE_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljZHpva3pkYmJ4a3B2b3ZicndsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMDM1NDIsImV4cCI6MjA4ODU3OTU0Mn0.tCxOGxWoowH3NBX-mS5L2CY0Kn7BnjTV6Lk8jq_kpCM');
+define('VAPID_SUBJECT',     'mailto:admin@compositor.sbs');
+define('VAPID_PUBLIC_KEY',  'BMaxuTgj0DINa2QS51FBtZpFYOlQuNe6AAgyqgL0sK2ZDsep7K8O_lPDMZBfa-GPWU6Nb0EXyxS1HoebxmO8L4U');
+define('VAPID_PRIVATE_KEY', 'M6Sf8nfVH0g8Pn4JBqSQwEj42eei_JezQ95iRb0LHt0');
+define('LOCK_FILE',  __DIR__ . '/.push_alarm.lock');
+define('SENT_FILE',  __DIR__ . '/.push_alarm_sent.json');
+define('LOG_FILE',   __DIR__ . '/push_alarm.log');
+define('SPAM_INTERVAL_SEC', 55); // min seconds between pushes per provider
 
-// ── Supabase REST helper ────────────────────────────────────────────────────
-function supabaseGet($path) {
-    global $SUPABASE_URL, $SUPABASE_KEY;
-    $ch = curl_init($SUPABASE_URL . $path);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HTTPHEADER => [
-            "apikey: $SUPABASE_KEY",
-            "Authorization: Bearer $SUPABASE_KEY",
-            "Content-Type: application/json"
-        ],
-        CURLOPT_TIMEOUT => 10,
-    ]);
-    $resp = curl_exec($ch);
-    curl_close($ch);
-    return $resp ? json_decode($resp, true) : [];
-}
+// ── Base64url helpers ─────────────────────────────────────────────────────
 
-// ── Base64URL helpers ───────────────────────────────────────────────────────
-function b64url_encode($data) {
+function b64url_encode(string $data): string {
     return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
 }
-function b64url_decode($data) {
+
+function b64url_decode(string $data): string {
     return base64_decode(strtr($data, '-_', '+/') . str_repeat('=', (4 - strlen($data) % 4) % 4));
 }
 
-// ── VAPID JWT Creation ──────────────────────────────────────────────────────
-function createVapidJwt($audience) {
-    global $VAPID_SUBJECT, $VAPID_PRIVATE_KEY, $VAPID_PUBLIC_KEY;
-    
+// ── Logging ───────────────────────────────────────────────────────────────
+
+function logMsg(string $msg): void {
+    $line = '[' . date('Y-m-d H:i:s') . '] ' . $msg;
+    echo $line . "\n";
+    @file_put_contents(LOG_FILE, $line . "\n", FILE_APPEND | LOCK_EX);
+}
+
+// ── Anti-spam tracker ─────────────────────────────────────────────────────
+
+function loadSentTracker(): array {
+    if (!file_exists(SENT_FILE)) return [];
+    $data = json_decode((string)file_get_contents(SENT_FILE), true);
+    $now  = time();
+    // Purge entries older than 5 minutes
+    return array_filter($data ?: [], fn($ts) => ($now - $ts) < 300);
+}
+
+function wasSentRecently(string $providerId): bool {
+    $tracker = loadSentTracker();
+    return isset($tracker[$providerId]) && (time() - $tracker[$providerId]) < SPAM_INTERVAL_SEC;
+}
+
+function markSent(string $providerId): void {
+    $tracker = loadSentTracker();
+    $tracker[$providerId] = time();
+    file_put_contents(SENT_FILE, json_encode($tracker), LOCK_EX);
+}
+
+// ── Supabase REST helper ──────────────────────────────────────────────────
+
+function supabaseGet(string $path): array {
+    $ch = curl_init(SUPABASE_URL . $path);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER     => [
+            'apikey: '        . SUPABASE_KEY,
+            'Authorization: Bearer ' . SUPABASE_KEY,
+            'Content-Type: application/json',
+        ],
+        CURLOPT_TIMEOUT => 15,
+    ]);
+    $body     = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode >= 400) {
+        logMsg("Supabase GET $path → HTTP $httpCode");
+        return [];
+    }
+    return json_decode((string)$body, true) ?: [];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// VAPID JWT  (ES256 / P-256)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function createVapidJwt(string $audience): ?string {
+    // Header + claims
     $header = b64url_encode(json_encode(['typ' => 'JWT', 'alg' => 'ES256']));
-    $payload = b64url_encode(json_encode([
+    $claims = b64url_encode(json_encode([
         'aud' => $audience,
-        'exp' => time() + 43200,
-        'sub' => $VAPID_SUBJECT,
+        'exp' => time() + 43200,  // 12 hours
+        'sub' => VAPID_SUBJECT,
     ]));
-    $input = "$header.$payload";
-    
-    // Build EC private key PEM from raw bytes
-    $privKeyRaw = b64url_decode($VAPID_PRIVATE_KEY);
-    $pubKeyRaw = b64url_decode($VAPID_PUBLIC_KEY); // 65 bytes (uncompressed)
-    
-    // ASN.1 DER structure for EC private key with P-256 curve
-    $der = "\x30\x77"                                    // SEQUENCE (119 bytes)
-         . "\x02\x01\x01"                                // INTEGER version=1
-         . "\x04\x20" . $privKeyRaw                      // OCTET STRING (32 bytes private key)
-         . "\xa0\x0a\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07"  // [0] OID prime256v1
-         . "\xa1\x44\x03\x42\x00" . $pubKeyRaw;          // [1] BIT STRING (66 bytes: 1+65)
-    
-    $pem = "-----BEGIN EC PRIVATE KEY-----\n" 
-         . chunk_split(base64_encode($der), 64, "\n") 
+    $unsigned = "$header.$claims";
+
+    // Build EC private key PEM from raw VAPID keys
+    $rawPrivate = b64url_decode(VAPID_PRIVATE_KEY);  // 32 bytes
+    $rawPublic  = b64url_decode(VAPID_PUBLIC_KEY);   // 65 bytes (04 + x + y)
+
+    // ASN.1 DER: ECPrivateKey with P-256 OID and public key
+    $der = "\x30\x77"                                              // SEQUENCE (119 bytes)
+         . "\x02\x01\x01"                                          // INTEGER version = 1
+         . "\x04\x20" . $rawPrivate                                // OCTET STRING (32 bytes)
+         . "\xa0\x0a\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07"    // [0] OID prime256v1
+         . "\xa1\x44\x03\x42\x00" . $rawPublic;                   // [1] BIT STRING (65 bytes)
+
+    $pem = "-----BEGIN EC PRIVATE KEY-----\n"
+         . chunk_split(base64_encode($der), 64, "\n")
          . "-----END EC PRIVATE KEY-----";
-    
+
     $key = openssl_pkey_get_private($pem);
     if (!$key) {
-        echo "ERROR: Failed to parse VAPID private key\n";
+        logMsg('VAPID: openssl_pkey_get_private failed — ' . openssl_error_string());
         return null;
     }
-    
-    openssl_sign($input, $derSig, $key, OPENSSL_ALGO_SHA256);
-    
-    // Convert DER signature to raw R||S (64 bytes)
+
+    if (!openssl_sign($unsigned, $derSig, $key, OPENSSL_ALGO_SHA256)) {
+        logMsg('VAPID: openssl_sign failed — ' . openssl_error_string());
+        return null;
+    }
+
+    $rawSig = derSignatureToRaw($derSig);
+    return "$unsigned." . b64url_encode($rawSig);
+}
+
+/**
+ * Convert ASN.1 DER ECDSA signature to raw R||S (64 bytes).
+ */
+function derSignatureToRaw(string $der): string {
+    // DER structure: 30 <len> 02 <rLen> <R> 02 <sLen> <S>
     $offset = 2;
-    if (ord($derSig[1]) > 127) $offset = 3;
-    $rLen = ord($derSig[$offset + 1]);
-    $r = substr($derSig, $offset + 2, $rLen);
-    $sOffset = $offset + 2 + $rLen;
-    $sLen = ord($derSig[$sOffset + 1]);
-    $s = substr($derSig, $sOffset + 2, $sLen);
-    // Pad/trim to 32 bytes each
+
+    // R
+    $rLen = ord($der[$offset + 1]);
+    $r    = substr($der, $offset + 2, $rLen);
+    $offset += 2 + $rLen;
+
+    // S
+    $sLen = ord($der[$offset + 1]);
+    $s    = substr($der, $offset + 2, $sLen);
+
+    // Pad / trim to exactly 32 bytes each
     $r = str_pad(ltrim($r, "\x00"), 32, "\x00", STR_PAD_LEFT);
     $s = str_pad(ltrim($s, "\x00"), 32, "\x00", STR_PAD_LEFT);
-    
-    return "$header.$payload." . b64url_encode($r . $s);
+
+    return $r . $s;
 }
 
-// ── WebPush Encryption (aes128gcm) ──────────────────────────────────────────
-function encryptPayload($payload, $userPublicKey, $userAuth) {
-    $userPub = b64url_decode($userPublicKey);   // 65 bytes
-    $authSecret = b64url_decode($userAuth);     // 16 bytes
-    
-    // Generate local ECDH key pair
-    $localKey = openssl_pkey_new(['curve_name' => 'prime256v1', 'private_key_type' => OPENSSL_KEYTYPE_EC]);
-    $localDetails = openssl_pkey_get_details($localKey);
-    // Uncompressed public key: 0x04 + x (32) + y (32) = 65 bytes
-    $localPubRaw = "\x04" . str_pad($localDetails['ec']['x'], 32, "\x00", STR_PAD_LEFT) 
-                          . str_pad($localDetails['ec']['y'], 32, "\x00", STR_PAD_LEFT);
-    
-    // Compute ECDH shared secret
-    // PHP 7.3+ openssl can derive shared secret via low-level EC operations
-    // We use openssl_pkey_derive if available (PHP 7.3+)
-    // Build a temporary PEM for the user's public key
-    $userPubDer = "\x30\x59\x30\x13\x06\x07\x2a\x86\x48\xce\x3d\x02\x01"
-               . "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07"
-               . "\x03\x42\x00" . $userPub;
-    $userPubPem = "-----BEGIN PUBLIC KEY-----\n" 
-                . chunk_split(base64_encode($userPubDer), 64, "\n") 
-                . "-----END PUBLIC KEY-----";
-    $userPubKey = openssl_pkey_get_public($userPubPem);
-    if (!$userPubKey) return null;
-    
-    $sharedSecret = openssl_pkey_derive($localKey, $userPubKey, 32);
-    if (!$sharedSecret) return null;
-    
-    // HKDF for auth_info
-    $authInfo = "WebPush: info\x00" . $userPub . $localPubRaw;
-    $ikm = hkdf($authSecret, $sharedSecret, $authInfo, 32);
-    
-    // Generate salt (16 bytes)
-    $salt = random_bytes(16);
-    
-    // PRK for content encryption
-    $prk = hash_hmac('sha256', $ikm, $salt, true);
-    
-    // Derive CEK and nonce
-    $cekInfo = "Content-Encoding: aes128gcm\x00";
-    $nonceInfo = "Content-Encoding: nonce\x00";
-    $cek = hkdf($salt, $ikm, $cekInfo, 16);
-    $nonce = hkdf($salt, $ikm, $nonceInfo, 12);
-    
-    // Pad payload with 0x02 delimiter
-    $paddedPayload = $payload . "\x02";
-    
-    // Encrypt with AES-128-GCM
-    $tag = '';
-    $encrypted = openssl_encrypt($paddedPayload, 'aes-128-gcm', $cek, OPENSSL_RAW_DATA, $nonce, $tag, '', 16);
-    if ($encrypted === false) return null;
-    
-    // Build aes128gcm header: salt(16) + rs(4) + idlen(1) + keyid(65) + encrypted+tag
-    $rs = pack('N', 4096);
+// ═══════════════════════════════════════════════════════════════════════════
+// WebPush payload encryption  (RFC 8291 + RFC 8188, aes128gcm)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Build a SubjectPublicKeyInfo PEM from a 65-byte uncompressed EC point.
+ */
+function ecPublicKeyToPem(string $rawPublicKey): string {
+    $der = "\x30\x59"                                           // SEQUENCE (89 bytes)
+         . "\x30\x13"                                           // SEQUENCE (19 bytes)
+         . "\x06\x07\x2a\x86\x48\xce\x3d\x02\x01"             // OID ecPublicKey
+         . "\x06\x08\x2a\x86\x48\xce\x3d\x03\x01\x07"         // OID prime256v1
+         . "\x03\x42\x00" . $rawPublicKey;                     // BIT STRING
+
+    return "-----BEGIN PUBLIC KEY-----\n"
+         . chunk_split(base64_encode($der), 64, "\n")
+         . "-----END PUBLIC KEY-----";
+}
+
+/**
+ * Encrypt a push payload using RFC 8291 (WebPush) + RFC 8188 (aes128gcm).
+ *
+ * @param  string      $payload         JSON string to encrypt
+ * @param  string      $userPublicKeyB64 Subscriber p256dh (base64url, 65 bytes decoded)
+ * @param  string      $userAuthB64      Subscriber auth   (base64url, 16 bytes decoded)
+ * @return string|null Encrypted body ready for POST, or null on failure
+ */
+function encryptPayload(string $payload, string $userPublicKeyB64, string $userAuthB64): ?string {
+    $userPublicKey = b64url_decode($userPublicKeyB64);  // 65 bytes
+    $userAuth      = b64url_decode($userAuthB64);       // 16 bytes
+
+    // 1. Generate ephemeral ECDH key pair on P-256
+    $localKey = openssl_pkey_new([
+        'curve_name'       => 'prime256v1',
+        'private_key_type' => OPENSSL_KEYTYPE_EC,
+    ]);
+    if (!$localKey) {
+        logMsg('Encrypt: openssl_pkey_new failed — ' . openssl_error_string());
+        return null;
+    }
+
+    $det   = openssl_pkey_get_details($localKey);
+    $localX = str_pad($det['ec']['x'], 32, "\x00", STR_PAD_LEFT);
+    $localY = str_pad($det['ec']['y'], 32, "\x00", STR_PAD_LEFT);
+    $localPublicKey = "\x04" . $localX . $localY;  // 65 bytes uncompressed
+
+    // 2. Import subscriber public key as OpenSSL resource
+    $peerPem = ecPublicKeyToPem($userPublicKey);
+    $peerKey = openssl_pkey_get_public($peerPem);
+    if (!$peerKey) {
+        logMsg('Encrypt: openssl_pkey_get_public failed — ' . openssl_error_string());
+        return null;
+    }
+
+    // 3. ECDH shared secret (32 bytes)
+    $sharedSecret = openssl_pkey_derive($peerKey, $localKey);
+    if ($sharedSecret === false) {
+        logMsg('Encrypt: openssl_pkey_derive (ECDH) failed — ' . openssl_error_string());
+        return null;
+    }
+
+    // 4. Key derivation — RFC 8291 §3.4
+    //    IKM = HKDF(salt=auth_secret, ikm=ecdh_secret, info="WebPush: info\0" || ua_pub || as_pub, len=32)
+    $keyInfo = "WebPush: info\x00" . $userPublicKey . $localPublicKey;
+    $ikm     = hash_hkdf('sha256', $sharedSecret, 32, $keyInfo, $userAuth);
+
+    // 5. Content-encryption keys — RFC 8188
+    $salt  = random_bytes(16);
+    $cek   = hash_hkdf('sha256', $ikm, 16, "Content-Encoding: aes128gcm\x00", $salt);
+    $nonce = hash_hkdf('sha256', $ikm, 12, "Content-Encoding: nonce\x00",     $salt);
+
+    // 6. Pad plaintext (single-record: data || 0x02 delimiter)
+    $padded = $payload . "\x02";
+
+    // 7. AES-128-GCM encrypt
+    $tag        = '';
+    $ciphertext = openssl_encrypt($padded, 'aes-128-gcm', $cek, OPENSSL_RAW_DATA, $nonce, $tag, '', 16);
+    if ($ciphertext === false) {
+        logMsg('Encrypt: openssl_encrypt (AES-GCM) failed — ' . openssl_error_string());
+        return null;
+    }
+
+    // 8. Build body — RFC 8188 aes128gcm content coding
+    //    salt(16) || rs(uint32 BE = 4096) || idlen(1 = 65) || keyid(65 = as_public) || record
+    $rs    = pack('N', 4096);
     $idLen = chr(65);
-    $body = $salt . $rs . $idLen . $localPubRaw . $encrypted . $tag;
-    
-    return ['body' => $body, 'localPub' => $localPubRaw];
+    return $salt . $rs . $idLen . $localPublicKey . $ciphertext . $tag;
 }
 
-function hkdf($salt, $ikm, $info, $length) {
-    $prk = hash_hmac('sha256', $ikm, $salt, true);
-    $t = '';
-    $output = '';
-    $counter = 1;
-    while (strlen($output) < $length) {
-        $t = hash_hmac('sha256', $t . $info . chr($counter), $prk, true);
-        $output .= $t;
-        $counter++;
-    }
-    return substr($output, 0, $length);
-}
+// ═══════════════════════════════════════════════════════════════════════════
+// Send push notification
+// ═══════════════════════════════════════════════════════════════════════════
 
-// ── Send Push Notification ──────────────────────────────────────────────────
-function sendPush($endpoint, $p256dh, $auth, $payloadJson) {
-    global $VAPID_PUBLIC_KEY;
-    
-    // Parse audience from endpoint
-    $parsed = parse_url($endpoint);
+/**
+ * @return true|int  true on success, HTTP status code on failure
+ */
+function sendPush(string $endpoint, string $p256dh, string $auth, string $payload) {
+    // Audience = origin of push service endpoint
+    $parsed   = parse_url($endpoint);
     $audience = $parsed['scheme'] . '://' . $parsed['host'];
-    
-    // Create VAPID JWT
+
+    // VAPID JWT
     $jwt = createVapidJwt($audience);
-    if (!$jwt) return false;
-    
-    // Encrypt payload
-    $encrypted = encryptPayload($payloadJson, $p256dh, $auth);
-    if (!$encrypted) {
-        // Fallback: send without payload
-        $ch = curl_init($endpoint);
-        curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => [
-                "Authorization: vapid t=$jwt, k=$VAPID_PUBLIC_KEY",
-                "TTL: 60",
-                "Content-Length: 0",
-            ],
-            CURLOPT_TIMEOUT => 10,
-        ]);
-        $resp = curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        return $code >= 200 && $code < 300;
-    }
-    
+    if (!$jwt) return 0;
+
+    // Encrypt payload (RFC 8291 + RFC 8188)
+    $body = encryptPayload($payload, $p256dh, $auth);
+    if (!$body) return 0;
+
+    // POST to push endpoint
     $ch = curl_init($endpoint);
     curl_setopt_array($ch, [
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => $encrypted['body'],
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $body,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HTTPHEADER => [
-            "Authorization: vapid t=$jwt, k=$VAPID_PUBLIC_KEY",
-            "Content-Type: application/octet-stream",
-            "Content-Encoding: aes128gcm",
-            "TTL: 60",
-            "Content-Length: " . strlen($encrypted['body']),
+        CURLOPT_HTTPHEADER     => [
+            'Authorization: vapid t=' . $jwt . ', k=' . VAPID_PUBLIC_KEY,
+            'Content-Type: application/octet-stream',
+            'Content-Encoding: aes128gcm',
+            'Content-Length: ' . strlen($body),
+            'TTL: 60',
+            'Urgency: high',
+            'Topic: horaface-alarm',
         ],
-        CURLOPT_TIMEOUT => 10,
+        CURLOPT_TIMEOUT => 30,
     ]);
-    $resp = curl_exec($ch);
-    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+    curl_exec($ch);
+    $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlErr  = curl_error($ch);
     curl_close($ch);
-    
-    return $code >= 200 && $code < 300;
+
+    if ($curlErr) {
+        logMsg("cURL error → $curlErr");
+        return 0;
+    }
+
+    return ($httpCode >= 200 && $httpCode < 300) ? true : $httpCode;
 }
 
-// ── Main Logic ──────────────────────────────────────────────────────────────
-function main() {
-    // 1. Get settings
-    $settings = supabaseGet('/rest/v1/kiosk_settings?id=eq.default&select=library');
-    $warningMin = 25;
+// ═══════════════════════════════════════════════════════════════════════════
+// Main logic
+// ═══════════════════════════════════════════════════════════════════════════
+
+function main(): void {
+    // ── Prevent concurrent runs ───────────────────────────────────────────
+    $lock = fopen(LOCK_FILE, 'w');
+    if (!flock($lock, LOCK_EX | LOCK_NB)) {
+        logMsg('Another instance running. Exiting.');
+        return;
+    }
+
+    logMsg('── Push alarm check started ──');
+
+    // ── 1. Load kiosk settings ────────────────────────────────────────────
+    $warningMin   = 25;
     $toleranceMin = 30;
-    
+
+    $settings = supabaseGet('/rest/v1/kiosk_settings?id=eq.default&select=library');
     if (!empty($settings[0]['library'])) {
-        $lib = is_string($settings[0]['library']) ? json_decode($settings[0]['library'], true) : $settings[0]['library'];
+        $lib = $settings[0]['library'];
+        if (is_string($lib)) $lib = json_decode($lib, true);
         if (is_array($lib)) {
             foreach ($lib as $item) {
-                if (isset($item['id']) && $item['id'] === 'system_config' && isset($item['options'])) {
-                    $warningMin = $item['options']['autoCheckoutWarningMinutes'] ?? 25;
-                    $toleranceMin = $item['options']['autoCheckoutToleranceMinutes'] ?? 30;
+                if (($item['id'] ?? '') === 'system_config' && isset($item['options'])) {
+                    $warningMin   = $item['options']['autoCheckoutWarningMinutes']   ?? $warningMin;
+                    $toleranceMin = $item['options']['autoCheckoutToleranceMinutes'] ?? $toleranceMin;
                     break;
                 }
             }
         }
     }
-    echo "Settings: warning={$warningMin}min, tolerance={$toleranceMin}min\n";
-    
-    // 2. Get active records (no checkout)
+    logMsg("Config: warning={$warningMin}min  tolerance={$toleranceMin}min");
+
+    // ── 2. Active time records (no checkout) ──────────────────────────────
     $records = supabaseGet('/rest/v1/time_records?check_out=is.null&select=id,provider_id,check_in');
-    if (empty($records)) { echo "No active records.\n"; return; }
-    echo "Active records: " . count($records) . "\n";
-    
-    // 3. Get providers and shifts
-    $providerIds = array_unique(array_column($records, 'provider_id'));
-    $idList = implode(',', $providerIds);
+    if (empty($records)) {
+        logMsg('No active records. Done.');
+        flock($lock, LOCK_UN); fclose($lock);
+        return;
+    }
+    logMsg(count($records) . ' active record(s).');
+
+    // ── 3. Providers, shifts, subscriptions ───────────────────────────────
+    $providerIds = array_values(array_unique(array_column($records, 'provider_id')));
+    $idList      = implode(',', $providerIds);
+
     $providers = supabaseGet("/rest/v1/providers?id=in.({$idList})&select=id,name,shift_id,shift_ids");
-    $shifts = supabaseGet('/rest/v1/shifts?select=id,start_time,end_time,name');
-    
-    // 4. Get push subscriptions
-    $subs = supabaseGet("/rest/v1/push_subscriptions?provider_id=in.({$idList})&select=*");
-    if (empty($subs)) { echo "No push subscriptions.\n"; return; }
-    
-    // Track notifications sent this run
-    $sentFile = __DIR__ . '/.push_sent.json';
-    $sentData = file_exists($sentFile) ? json_decode(file_get_contents($sentFile), true) : [];
-    if (!is_array($sentData)) $sentData = [];
-    // Clean old entries (> 10 min ago)
-    $sentData = array_filter($sentData, function($ts) { return $ts > time() - 600; });
-    
-    $now = new DateTime('now', new DateTimeZone('America/Sao_Paulo'));
-    $nowMin = (int)$now->format('G') * 60 + (int)$now->format('i');
-    
+    $shifts    = supabaseGet('/rest/v1/shifts?select=id,start_time,end_time,name');
+    $subs      = supabaseGet("/rest/v1/push_subscriptions?provider_id=in.({$idList})&select=*");
+
+    if (empty($subs)) {
+        logMsg('No push subscriptions found. Done.');
+        flock($lock, LOCK_UN); fclose($lock);
+        return;
+    }
+
+    // ── 4. Check each record ──────────────────────────────────────────────
+    $now        = new DateTime('now');
+    $nowMinutes = (int)$now->format('G') * 60 + (int)$now->format('i');
+    $pushed     = 0;
+
     foreach ($records as $record) {
+        $providerId = $record['provider_id'];
+
+        // Anti-spam
+        if (wasSentRecently($providerId)) continue;
+
+        // Find provider
         $provider = null;
         foreach ($providers as $p) {
-            if ($p['id'] === $record['provider_id']) { $provider = $p; break; }
+            if ($p['id'] === $providerId) { $provider = $p; break; }
         }
         if (!$provider) continue;
-        
-        // Find provider's shifts
+
+        // Resolve shift IDs
         $shiftIds = [];
-        if (!empty($provider['shift_ids'])) {
+        if (!empty($provider['shift_ids']) && is_array($provider['shift_ids'])) {
             $shiftIds = $provider['shift_ids'];
         } elseif (!empty($provider['shift_id'])) {
             $shiftIds = [$provider['shift_id']];
         }
-        
-        $matchedShift = null;
-        $checkInDate = new DateTime($record['check_in'], new DateTimeZone('America/Sao_Paulo'));
-        $checkInMin = (int)$checkInDate->format('G') * 60 + (int)$checkInDate->format('i');
-        
+
+        // Map to shift objects
+        $provShifts = [];
         foreach ($shiftIds as $sid) {
-            foreach ($shifts as $sh) {
-                if ($sh['id'] !== $sid) continue;
-                if (empty($sh['start_time']) || empty($sh['end_time'])) continue;
-                $parts = explode(':', $sh['end_time']);
-                $matchedShift = $sh;
-                break 2;
+            foreach ($shifts as $s) {
+                if ($s['id'] === $sid) { $provShifts[] = $s; break; }
             }
         }
-        
+
+        // Match shift active at check-in time
+        $checkIn    = new DateTime($record['check_in']);
+        $checkInMin = (int)$checkIn->format('G') * 60 + (int)$checkIn->format('i');
+
+        $matchedShift = null;
+        foreach ($provShifts as $s) {
+            if (empty($s['start_time']) || empty($s['end_time'])) continue;
+            [$sh, $sm] = array_map('intval', explode(':', $s['start_time']));
+            [$eh, $em] = array_map('intval', explode(':', $s['end_time']));
+            $sMin = $sh * 60 + $sm - 60;  // 1 hr before start
+            $eMin = $eh * 60 + $em;
+
+            if ($sMin <= $eMin) {
+                if ($checkInMin >= $sMin && $checkInMin <= $eMin) { $matchedShift = $s; break; }
+            } else {
+                // Overnight shift
+                if ($checkInMin >= $sMin || $checkInMin <= $eMin) { $matchedShift = $s; break; }
+            }
+        }
+        if (!$matchedShift && !empty($provShifts)) $matchedShift = $provShifts[0];
         if (!$matchedShift) continue;
-        
-        $endParts = explode(':', $matchedShift['end_time']);
-        $shiftEndMin = (int)$endParts[0] * 60 + (int)$endParts[1];
-        $alarmStartMin = $shiftEndMin + $warningMin;
-        $autoCloseMin = $shiftEndMin + $toleranceMin;
-        
-        // Check if we're in the alarm window
-        if ($nowMin >= $alarmStartMin && $nowMin <= $autoCloseMin) {
-            // Throttle: max one push per 30 seconds per provider
-            $key = $provider['id'] . '_push';
-            if (isset($sentData[$key]) && $sentData[$key] > time() - 30) {
-                echo "Throttled: {$provider['name']}\n";
-                continue;
+
+        // Calculate alarm window
+        [$eH, $eM]     = array_map('intval', explode(':', $matchedShift['end_time']));
+        $shiftEndMin    = $eH * 60 + $eM;
+        $alarmStartMin  = $shiftEndMin + $warningMin;
+        $autoCloseMin   = $shiftEndMin + $toleranceMin;
+
+        // Skip if clearly not in alarm window (e.g. overnight shift edge-case)
+        if ($shiftEndMin < 360 && $nowMinutes > 720) continue;
+
+        if ($nowMinutes < $alarmStartMin || $nowMinutes > $autoCloseMin) continue;
+
+        // ── In alarm window → send push ───────────────────────────────────
+        $minutesLeft = max(0, $autoCloseMin - $nowMinutes);
+        $payload     = json_encode([
+            'title'      => "⚠️ {$provider['name']}, marque sua saída!",
+            'body'       => "Seu turno terminou. Fechamento automático em {$minutesLeft} min.",
+            'providerId' => $providerId,
+        ], JSON_UNESCAPED_UNICODE);
+
+        $providerSubs = array_filter($subs, fn($s) => $s['provider_id'] === $providerId);
+
+        foreach ($providerSubs as $sub) {
+            $result = sendPush($sub['endpoint'], $sub['p256dh'], $sub['auth'], $payload);
+
+            if ($result === true) {
+                logMsg("✅ Push sent → {$provider['name']}  ({$minutesLeft} min left)");
+                markSent($providerId);
+                $pushed++;
+            } elseif ($result === 410 || $result === 404) {
+                logMsg("⚠️  Subscription expired → {$provider['name']} (HTTP $result)");
+                // TODO: DELETE expired subscription from push_subscriptions table
+            } else {
+                logMsg("❌ Push failed → {$provider['name']} (HTTP $result)");
             }
-            
-            $minutesLeft = $autoCloseMin - $nowMin;
-            $payload = json_encode([
-                'title' => "⚠️ {$provider['name']}, marque sua saída!",
-                'body' => "Seu turno terminou. Fechamento automático em {$minutesLeft} min.",
-                'providerId' => $provider['id'],
-            ]);
-            
-            // Send to all subscriptions for this provider
-            foreach ($subs as $sub) {
-                if ($sub['provider_id'] !== $provider['id']) continue;
-                $ok = sendPush($sub['endpoint'], $sub['p256dh'], $sub['auth'], $payload);
-                echo ($ok ? "✅" : "❌") . " Push to {$provider['name']}\n";
-            }
-            
-            $sentData[$key] = time();
         }
     }
-    
-    // Save sent data
-    file_put_contents($sentFile, json_encode($sentData));
-    echo "Done.\n";
+
+    logMsg("── Done. {$pushed} push(es) sent. ──");
+    flock($lock, LOCK_UN);
+    fclose($lock);
 }
 
+// ── Run ───────────────────────────────────────────────────────────────────
 main();

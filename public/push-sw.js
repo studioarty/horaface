@@ -1,6 +1,4 @@
-// HoraFace Push Notification Handler
-// Imported by the main service worker via importScripts
-
+// Push Notification Handler for HoraFace
 self.addEventListener('push', function(event) {
   const data = event.data ? event.data.json() : {};
   const title = data.title || '⚠️ HoraFace - Marque sua Saída!';
