@@ -7,13 +7,13 @@
 #   RewriteCond %{HTTPS} off
 #   RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 # </IfModule>
-# Bloquear acesso web ao script de push (roda apenas via cron CLI)
-<Files "push_alarm.php">
+# Bloquear acesso web a arquivos internos do push
+<Files ".push_alarm_sent.json">
   <IfModule mod_authz_core.c>
     Require all denied
   </IfModule>
 </Files>
-<Files ".push_sent.json">
+<Files "push_alarm.log">
   <IfModule mod_authz_core.c>
     Require all denied
   </IfModule>

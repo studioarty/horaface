@@ -2,17 +2,24 @@
 /**
  * HoraFace Push Alarm — Cron Job Script
  *
- * Run every minute via cron:  php /home/user/public_html/push_alarm.php
- * Checks for overdue shift records and sends web push notifications.
+ * Can be triggered via:
+ *   1. CLI:  php push_alarm.php
+ *   2. URL:  https://compositor.sbs/push_alarm.php?token=SECRET
  *
  * Self-contained: NO external dependencies (no composer).
  * Requires: PHP 7.3+ with openssl and curl extensions.
- *
- * Security: Block direct web access via .htaccess:
- *   <Files "push_alarm.php">
- *     Require all denied
- *   </Files>
  */
+
+// Security: require token for web access
+$SECRET_TOKEN = 'hf_push_2026_x9k4m';
+if (php_sapi_name() !== 'cli') {
+    if (($_GET['token'] ?? '') !== $SECRET_TOKEN) {
+        http_response_code(403);
+        die('Forbidden');
+    }
+    // Prevent timeout for long-running script (2 runs × 30s)
+    set_time_limit(90);
+}
 
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
