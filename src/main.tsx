@@ -4,7 +4,7 @@ import App from "./App";
 import "./index.css";
 
 // ── Forçar limpeza de cache (uma vez por versão) ──────────────────────────
-const APP_VERSION = '2026.07.04.v2';
+const APP_VERSION = '2026.07.06.v3';
 if (typeof window !== 'undefined') {
   const lastVersion = localStorage.getItem('horaface_version');
   if (lastVersion !== APP_VERSION && 'serviceWorker' in navigator) {

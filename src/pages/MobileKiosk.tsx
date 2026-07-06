@@ -116,6 +116,20 @@ const MobileKiosk = () => {
     init();
   }, []);
 
+  // 2b. Refresh settings periodically (every 2 min) + on visibility change
+  useEffect(() => {
+    const refreshSettings = async () => {
+      try {
+        const fresh = await fetchKioskSettings();
+        setLiveSettings(fresh);
+      } catch { /* silent */ }
+    };
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshSettings(); };
+    document.addEventListener('visibilitychange', onVisible);
+    const interval = setInterval(refreshSettings, 120_000);
+    return () => { document.removeEventListener('visibilitychange', onVisible); clearInterval(interval); };
+  }, []);
+
   // 3. Ultra-fast Face Scan Loop (With strict processingRef check)
   // Runs on both 'scan' tab (marcação) and 'history' tab (identify to view records)
   useEffect(() => {
