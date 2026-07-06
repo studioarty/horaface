@@ -236,19 +236,31 @@ const MobileKiosk = () => {
   // ── ALARM FUNCTIONS (before confirmPonto so stopAlarm is accessible) ────
   const playAlarmBeep = useCallback(() => {
     try {
-      if (navigator.vibrate) navigator.vibrate([400, 150, 400, 150, 600]);
+      // Vibração longa e urgente (3s)
+      if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500, 200, 800]);
       const ctx = alarmAudioCtxRef.current || new (window.AudioContext || (window as any).webkitAudioContext)();
       alarmAudioCtxRef.current = ctx;
       if (ctx.state === 'suspended') ctx.resume();
-      const osc1 = ctx.createOscillator(); const gain1 = ctx.createGain();
-      osc1.type = 'square'; osc1.frequency.value = 880; gain1.gain.value = 0.3;
-      osc1.connect(gain1).connect(ctx.destination); osc1.start(ctx.currentTime); osc1.stop(ctx.currentTime + 0.2);
-      const osc2 = ctx.createOscillator(); const gain2 = ctx.createGain();
-      osc2.type = 'square'; osc2.frequency.value = 1100; gain2.gain.value = 0.3;
-      osc2.connect(gain2).connect(ctx.destination); osc2.start(ctx.currentTime + 0.3); osc2.stop(ctx.currentTime + 0.5);
-      const osc3 = ctx.createOscillator(); const gain3 = ctx.createGain();
-      osc3.type = 'square'; osc3.frequency.value = 1320; gain3.gain.value = 0.35;
-      osc3.connect(gain3).connect(ctx.destination); osc3.start(ctx.currentTime + 0.6); osc3.stop(ctx.currentTime + 0.9);
+      const t = ctx.currentTime;
+      // Sirene: alterna entre 2 frequências 6 vezes em 3 segundos
+      const freqs = [880, 1200, 880, 1200, 880, 1200];
+      const noteDur = 0.4;
+      const gap = 0.1;
+      freqs.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.value = freq;
+        // Fade in/out para soar como sirene
+        const start = t + i * (noteDur + gap);
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(0.35, start + 0.05);
+        gain.gain.setValueAtTime(0.35, start + noteDur - 0.05);
+        gain.gain.linearRampToValueAtTime(0, start + noteDur);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + noteDur);
+      });
     } catch (e) { console.warn('Alarm beep failed:', e); }
   }, []);
 
@@ -484,7 +496,7 @@ const MobileKiosk = () => {
           setAlarmActive(true);
           playAlarmBeep();
           // Repeat beep every 30 seconds
-          alarmBeepRef.current = setInterval(playAlarmBeep, 30000);
+          alarmBeepRef.current = setInterval(playAlarmBeep, 5000);
         }
       } else if (now >= autoClose) {
         // Auto-close time passed → stop alarm
