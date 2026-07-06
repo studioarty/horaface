@@ -28,7 +28,7 @@ define('VAPID_PRIVATE_KEY', 'M6Sf8nfVH0g8Pn4JBqSQwEj42eei_JezQ95iRb0LHt0');
 define('LOCK_FILE',  __DIR__ . '/.push_alarm.lock');
 define('SENT_FILE',  __DIR__ . '/.push_alarm_sent.json');
 define('LOG_FILE',   __DIR__ . '/push_alarm.log');
-define('SPAM_INTERVAL_SEC', 55); // min seconds between pushes per provider
+define('SPAM_INTERVAL_SEC', 25); // min seconds between pushes per provider
 
 // ── Base64url helpers ─────────────────────────────────────────────────────
 
@@ -455,5 +455,7 @@ function main(): void {
     fclose($lock);
 }
 
-// ── Run ───────────────────────────────────────────────────────────────────
+// ── Run (2x per cron = every 30 seconds) ──────────────────────────────────
+main();
+sleep(30);
 main();
