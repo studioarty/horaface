@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import Webcam from 'react-webcam';
 import type { Provider, TimeRecord } from '@/types';
 import { fetchProviders, insertCheckIn, insertCheckOut } from '@/lib/api';
-import { fetchKioskSettings, fetchShifts, fetchRecordsByProvider } from '@/lib/api.supabase';
+import { fetchKioskSettings, fetchShifts, fetchRecordsByProvider, savePushSubscription, VAPID_PUBLIC_KEY } from '@/lib/api.supabase';
 import { useTimeStore } from '@/stores/useTimeStore';
 import { haversineDistance } from '@/lib/geoUtils';
 import { detectFace, loadModels, matchFace, capturePhoto } from '@/lib/faceApi';
@@ -404,6 +404,30 @@ const MobileKiosk = () => {
             shiftEndTime: alarmTime.toISOString(),
             autoCloseTime: autoCloseTime.toISOString(),
           }));
+        }
+
+        // ── Inscrever para Push Notifications (silencioso) ──────────
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+          (async () => {
+            try {
+              const permission = await Notification.requestPermission();
+              if (permission !== 'granted') return;
+              const reg = await navigator.serviceWorker.ready;
+              let sub = await reg.pushManager.getSubscription();
+              if (!sub) {
+                const urlB64ToUint8 = (b64: string) => {
+                  const pad = '='.repeat((4 - b64.length % 4) % 4);
+                  const raw = atob(b64.replace(/-/g, '+').replace(/_/g, '/') + pad);
+                  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+                };
+                sub = await reg.pushManager.subscribe({
+                  userVisibleOnly: true,
+                  applicationServerKey: urlB64ToUint8(VAPID_PUBLIC_KEY),
+                });
+              }
+              await savePushSubscription(matchedProvider.id, sub);
+            } catch (e) { console.warn('Push subscription failed:', e); }
+          })();
         }
       }
 

@@ -7,6 +7,17 @@
 #   RewriteCond %{HTTPS} off
 #   RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 # </IfModule>
+# Bloquear acesso web ao script de push (roda apenas via cron CLI)
+<Files "push_alarm.php">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+</Files>
+<Files ".push_sent.json">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+</Files>
 
 # Roteamento SPA - todas as rotas apontam para index.html
 <IfModule mod_rewrite.c>

@@ -1390,3 +1390,23 @@ export function calculateMonthHours(records: TimeRecord[], holidays: Holiday[]):
   return totalHours;
 }
 
+// ── Push Notification Subscriptions ───────────────────────────────────────
+export const VAPID_PUBLIC_KEY = 'BMaxuTgj0DINa2QS51FBtZpFYOlQuNe6AAgyqgL0sK2ZDsep7K8O_lPDMZBfa-GPWU6Nb0EXyxS1HoebxmO8L4U';
+
+export async function savePushSubscription(providerId: string, subscription: PushSubscription) {
+  const sub = subscription.toJSON();
+  const { error } = await supabase.from('push_subscriptions').upsert({
+    provider_id: providerId,
+    endpoint: sub.endpoint,
+    p256dh: sub.keys?.p256dh || '',
+    auth: sub.keys?.auth || '',
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'provider_id,endpoint' });
+  if (error) console.error('Error saving push subscription:', error);
+}
+
+export async function removePushSubscription(providerId: string, endpoint: string) {
+  await supabase.from('push_subscriptions').delete()
+    .eq('provider_id', providerId)
+    .eq('endpoint', endpoint);
+}
