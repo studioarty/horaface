@@ -351,6 +351,7 @@ function main(): void {
     logMsg(count($records) . ' active record(s).');
 
     // ── 3. Providers, shifts, subscriptions ───────────────────────────────
+    $providerIds = array_values(array_unique(array_column($records, 'provider_id')));
     $quotedIds = array_map(fn($id) => '"' . $id . '"', $providerIds);
     $idList    = implode(',', $quotedIds);
 
