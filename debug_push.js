@@ -2,26 +2,18 @@ import { Client } from 'ssh2';
 
 const conn = new Client();
 conn.on('ready', () => {
-  const url1 = 'https://oagobzccstjswhftshmw.supabase.co/rest/v1/providers?id=in.(prov-1774544879693,prov-1773107081259)&select=id,name';
-  const url2 = 'https://oagobzccstjswhftshmw.supabase.co/rest/v1/providers?id=in.(%22prov-1774544879693%22,%22prov-1773107081259%22)&select=id,name';
-  
-  const cmd = `
-    echo "TEST 1 (No quotes):"
-    curl -s -H "apikey: \${SUPABASE_KEY}" -H "Authorization: Bearer \${SUPABASE_KEY}" "${url1}" | head -c 200
-    echo "\\nTEST 2 (URL Encoded quotes):"
-    curl -s -H "apikey: \${SUPABASE_KEY}" -H "Authorization: Bearer \${SUPABASE_KEY}" "${url2}" | head -c 200
-  `;
-  
-  // Need to read the key from the env or file. Let's just use php to execute the request since it has the key.
   const phpTest = `
 <?php
 require_once __DIR__ . '/push_alarm.php';
-$url1 = '/rest/v1/providers?id=in.(prov-1774544879693,prov-1773107081259)&select=id,name';
-$url2 = '/rest/v1/providers?id=in.(%22prov-1774544879693%22,%22prov-1773107081259%22)&select=id,name';
-echo "URL1:\\n";
-print_r(supabaseGet($url1));
-echo "\\nURL2:\\n";
-print_r(supabaseGet($url2));
+
+echo "Test 1: select=id,name (No quotes)\\n";
+print_r(supabaseGet('/rest/v1/providers?id=in.(prov-1774544879693)&select=id,name'));
+
+echo "\\nTest 2: select=id,name,shift_id (No quotes)\\n";
+print_r(supabaseGet('/rest/v1/providers?id=in.(prov-1774544879693)&select=id,name,shift_id'));
+
+echo "\\nTest 3: select=id,name,shift_ids (No quotes)\\n";
+print_r(supabaseGet('/rest/v1/providers?id=in.(prov-1774544879693)&select=id,name,shift_ids'));
 ?>
 `;
   
