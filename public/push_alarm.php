@@ -352,7 +352,8 @@ function main(): void {
 
     // ── 3. Providers, shifts, subscriptions ───────────────────────────────
     $providerIds = array_values(array_unique(array_column($records, 'provider_id')));
-    $quotedIds = array_map(fn($id) => '"' . $id . '"', $providerIds);
+    // URL encode the quotes: %22prov-123%22
+    $quotedIds = array_map(fn($id) => '%22' . $id . '%22', $providerIds);
     $idList    = implode(',', $quotedIds);
 
     $providers = supabaseGet("/rest/v1/providers?id=in.({$idList})&select=id,name,shift_id,shift_ids");
