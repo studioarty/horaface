@@ -106,11 +106,15 @@ async function autoCloseOverdueRecords() {
       const targetDate = new Date(checkInDate);
       targetDate.setHours(eH, eM + tolerance, 0, 0);
 
+      const exactShiftEnd = new Date(checkInDate);
+      exactShiftEnd.setHours(eH, eM, 0, 0);
+
       // Turno da noite cruza meia-noite (ex: 22:00–03:18)
-      // O fim do turno é no DIA SEGUINTE — ajusta targetDate +1 dia
+      // O fim do turno é no DIA SEGUINTE — ajusta datas +1 dia
       const isOvernightShift = endMinShift < startMinShift;
       if (isOvernightShift && targetDate.getTime() <= checkInDate.getTime()) {
         targetDate.setDate(targetDate.getDate() + 1);
+        exactShiftEnd.setDate(exactShiftEnd.getDate() + 1);
       }
 
       if (Date.now() >= targetDate.getTime()) {
@@ -150,7 +154,7 @@ async function autoCloseOverdueRecords() {
             ctx.fillText("Tolerância do Turno Excedida", 320, 270);
 
             ctx.font = "18px monospace";
-            ctx.fillText(targetDate.toLocaleString("pt-BR"), 320, 340);
+            ctx.fillText(exactShiftEnd.toLocaleString("pt-BR"), 320, 340);
           }
           warningImageBase64 = canvas.toDataURL("image/jpeg", 0.8);
         } catch (canvasErr) {
@@ -164,7 +168,7 @@ async function autoCloseOverdueRecords() {
           provider.id,
           warningImageBase64,
           "SAÍDA AUTOMÁTICA",
-          targetDate.toISOString()
+          exactShiftEnd.toISOString()
         );
       }
     }
