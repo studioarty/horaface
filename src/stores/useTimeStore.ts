@@ -39,7 +39,7 @@ if (typeof window !== "undefined") {
     // Only poll if there's an active record to avoid unnecessary DB calls when empty
     // Actually, checking autoCloseOverdueRecords is fine, it will fetch when needed.
     loadRecords(true);
-  }, 60000);
+  }, 30000);
 }
 
 async function autoCloseOverdueRecords() {
