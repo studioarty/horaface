@@ -46,13 +46,6 @@ const MobileKiosk = () => {
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsWatchId, setGpsWatchId] = useState<number | null>(null);
 
-  // ── Alarm State ──────────────────────────────────────────────────────────
-  const [alarmActive, setAlarmActive] = useState(false);
-  const [alarmProviderName, setAlarmProviderName] = useState('');
-  const [alarmSecondsLeft, setAlarmSecondsLeft] = useState(0);
-  const alarmAudioCtxRef = useRef<AudioContext | null>(null);
-  const alarmIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const alarmBeepRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const webcamRef = useRef<Webcam>(null);
   // Synchronous lock to prevent duplicate scans/clicks
@@ -233,43 +226,6 @@ const MobileKiosk = () => {
       return undefined;
     }
   };
-  // ── ALARM FUNCTIONS (before confirmPonto so stopAlarm is accessible) ────
-  const playAlarmBeep = useCallback(() => {
-    try {
-      // Vibração longa e urgente (3s)
-      if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500, 200, 800]);
-      const ctx = alarmAudioCtxRef.current || new (window.AudioContext || (window as any).webkitAudioContext)();
-      alarmAudioCtxRef.current = ctx;
-      if (ctx.state === 'suspended') ctx.resume();
-      const t = ctx.currentTime;
-      // Sirene: alterna entre 2 frequências 6 vezes em 3 segundos
-      const freqs = [880, 1200, 880, 1200, 880, 1200];
-      const noteDur = 0.4;
-      const gap = 0.1;
-      freqs.forEach((freq, i) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.value = freq;
-        // Fade in/out para soar como sirene
-        const start = t + i * (noteDur + gap);
-        gain.gain.setValueAtTime(0, start);
-        gain.gain.linearRampToValueAtTime(0.35, start + 0.05);
-        gain.gain.setValueAtTime(0.35, start + noteDur - 0.05);
-        gain.gain.linearRampToValueAtTime(0, start + noteDur);
-        osc.connect(gain).connect(ctx.destination);
-        osc.start(start);
-        osc.stop(start + noteDur);
-      });
-    } catch (e) { console.warn('Alarm beep failed:', e); }
-  }, []);
-
-  const stopAlarm = useCallback(() => {
-    setAlarmActive(false);
-    if (alarmBeepRef.current) { clearInterval(alarmBeepRef.current); alarmBeepRef.current = null; }
-    if (alarmIntervalRef.current) { clearInterval(alarmIntervalRef.current); alarmIntervalRef.current = null; }
-    localStorage.removeItem('horaface_alarm');
-  }, []);
 
   // 5. Confirm and execute check-in / check-out with validation
   const confirmPonto = async () => {
@@ -373,7 +329,6 @@ const MobileKiosk = () => {
         );
         if (result.success) {
           greetCollaborator('out', matchedProvider.name);
-          stopAlarm(); // Para o alarme ao marcar saída
           setAppState('success');
           toast.success('Saída marcada com sucesso!');
         } else {
@@ -386,62 +341,7 @@ const MobileKiosk = () => {
         setAppState('success');
         toast.success('Entrada marcada com sucesso! Bom trabalho.');
 
-        // ── Configurar alarme de saída ──────────────────────────────
-        const warningMin = liveSettings?.autoCheckoutWarningMinutes ?? 25;
-        const toleranceMin = liveSettings?.autoCheckoutToleranceMinutes ?? 30;
-        // Encontrar turno ativo do colaborador
-        const pShiftIds = matchedProvider.shiftIds?.length > 0
-          ? matchedProvider.shiftIds
-          : matchedProvider.shiftId ? [matchedProvider.shiftId] : [];
-        const pShifts = pShiftIds.map((id: string) => shiftsList.find((s: any) => s.id === id)).filter(Boolean);
-        const nowDate = new Date();
-        const curMin = nowDate.getHours() * 60 + nowDate.getMinutes();
-        const activeShift = pShifts.find((s: any) => {
-          if (!s.startTime || !s.endTime) return false;
-          const [sh, sm] = s.startTime.split(':').map(Number);
-          const [eh, em] = s.endTime.split(':').map(Number);
-          const sMin = sh * 60 + sm - 60;
-          const eMin = eh * 60 + em;
-          return sMin <= eMin ? (curMin >= sMin && curMin <= eMin) : (curMin >= sMin || curMin <= eMin);
-        });
-        if (activeShift) {
-          const [eH, eM] = activeShift.endTime.split(':').map(Number);
-          const alarmTime = new Date(nowDate);
-          alarmTime.setHours(eH, eM + warningMin, 0, 0);
-          const autoCloseTime = new Date(nowDate);
-          autoCloseTime.setHours(eH, eM + toleranceMin, 0, 0);
-          localStorage.setItem('horaface_alarm', JSON.stringify({
-            providerId: matchedProvider.id,
-            providerName: matchedProvider.name,
-            shiftEndTime: alarmTime.toISOString(),
-            autoCloseTime: autoCloseTime.toISOString(),
-          }));
-        }
 
-        // ── Inscrever para Push Notifications (silencioso) ──────────
-        if ('serviceWorker' in navigator && 'PushManager' in window) {
-          (async () => {
-            try {
-              const permission = await Notification.requestPermission();
-              if (permission !== 'granted') return;
-              const reg = await navigator.serviceWorker.ready;
-              let sub = await reg.pushManager.getSubscription();
-              if (!sub) {
-                const urlB64ToUint8 = (b64: string) => {
-                  const pad = '='.repeat((4 - b64.length % 4) % 4);
-                  const raw = atob(b64.replace(/-/g, '+').replace(/_/g, '/') + pad);
-                  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
-                };
-                sub = await reg.pushManager.subscribe({
-                  userVisibleOnly: true,
-                  applicationServerKey: urlB64ToUint8(VAPID_PUBLIC_KEY),
-                });
-              }
-              await savePushSubscription(matchedProvider.id, sub);
-            } catch (e) { console.warn('Push subscription failed:', e); }
-          })();
-        }
-      }
 
       // Reload records to keep sync in memory
       await timeStore.loadRecords();
@@ -464,54 +364,6 @@ const MobileKiosk = () => {
     }
   }, [appState]);
 
-  // ── 7. ALARM MONITOR (check every 10 seconds) ──────────────────────────
-  useEffect(() => {
-    const checkAlarm = async () => {
-      const raw = localStorage.getItem('horaface_alarm');
-      if (!raw) { if (alarmActive) stopAlarm(); return; }
-
-      let alarmData: any;
-      try { alarmData = JSON.parse(raw); } catch { localStorage.removeItem('horaface_alarm'); return; }
-
-      const { providerId, providerName, shiftEndTime, autoCloseTime } = alarmData;
-      if (!providerId || !shiftEndTime) return;
-
-      // Check if record is still active (no checkout yet)
-      const stillActive = await timeStore.fetchActiveRecordFromDB(providerId);
-      if (!stillActive) {
-        // Checkout happened (manual or automatic) → stop alarm
-        stopAlarm();
-        return;
-      }
-
-      const now = Date.now();
-      const alarmStart = new Date(shiftEndTime).getTime();
-      const autoClose = new Date(autoCloseTime).getTime();
-
-      if (now >= alarmStart && now < autoClose) {
-        const secsLeft = Math.max(0, Math.round((autoClose - now) / 1000));
-        setAlarmSecondsLeft(secsLeft);
-        setAlarmProviderName(providerName);
-        if (!alarmActive) {
-          setAlarmActive(true);
-          playAlarmBeep();
-          // Repeat beep every 30 seconds
-          alarmBeepRef.current = setInterval(playAlarmBeep, 5000);
-        }
-      } else if (now >= autoClose) {
-        // Auto-close time passed → stop alarm
-        stopAlarm();
-      }
-    };
-
-    checkAlarm();
-    alarmIntervalRef.current = setInterval(checkAlarm, 10000);
-
-    return () => {
-      if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
-      if (alarmBeepRef.current) clearInterval(alarmBeepRef.current);
-    };
-  }, [alarmActive, playAlarmBeep, stopAlarm]);
 
   const resetAppState = () => {
     setMatchedProvider(null);
@@ -1156,45 +1008,6 @@ const MobileKiosk = () => {
         </div>
       )}
 
-      {/* ── ALARM OVERLAY ── */}
-      {alarmActive && (
-        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-red-950/95 backdrop-blur-sm" style={{animation: 'alarmPulse 1s ease-in-out infinite'}}>
-          <div className="absolute inset-0 border-[6px] border-red-500 rounded-none" style={{animation: 'alarmBorder 0.8s ease-in-out infinite'}} />
-          
-          <div className="flex flex-col items-center gap-6 px-8 text-center">
-            <div className="size-20 rounded-full bg-red-500/20 border-2 border-red-400 flex items-center justify-center" style={{animation: 'alarmIcon 0.6s ease-in-out infinite'}}>
-              <span className="text-4xl">⚠️</span>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-black text-red-100 uppercase tracking-wider mb-2">
-                Marque sua Saída!
-              </h2>
-              <p className="text-lg text-red-200 font-semibold">{alarmProviderName}</p>
-            </div>
-
-            <div className="bg-red-900/60 border border-red-700/60 rounded-2xl px-6 py-4 space-y-1">
-              <p className="text-xs text-red-300 uppercase font-bold tracking-widest">Fechamento automático em</p>
-              <p className="text-4xl font-black text-red-100 font-mono">
-                {Math.floor(alarmSecondsLeft / 60)}:{String(alarmSecondsLeft % 60).padStart(2, '0')}
-              </p>
-            </div>
-
-            <button
-              onClick={() => {
-                stopAlarm();
-                setScanMode('checkin');
-                setAppState('ready');
-              }}
-              className="w-full max-w-xs py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-black text-lg uppercase tracking-wider shadow-2xl shadow-emerald-900/50 active:scale-95 transition-transform"
-            >
-              📸 Registrar Saída Agora
-            </button>
-
-            <p className="text-[10px] text-red-400/60">O alarme para automaticamente ao registrar a saída</p>
-          </div>
-        </div>
-      )}
 
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes scan {
@@ -1202,18 +1015,6 @@ const MobileKiosk = () => {
           10% { opacity: 1; }
           90% { opacity: 1; }
           100% { top: 100%; opacity: 0; }
-        }
-        @keyframes alarmPulse {
-          0%, 100% { background-color: rgba(69, 10, 10, 0.95); }
-          50% { background-color: rgba(127, 29, 29, 0.98); }
-        }
-        @keyframes alarmBorder {
-          0%, 100% { border-color: rgba(239, 68, 68, 0.4); }
-          50% { border-color: rgba(239, 68, 68, 1); }
-        }
-        @keyframes alarmIcon {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.15); }
         }
       `}} />
     </div>
