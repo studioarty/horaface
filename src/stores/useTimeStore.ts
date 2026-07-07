@@ -33,6 +33,15 @@ function getSnapshot() {
   return data;
 }
 
+// ── Poll every minute to process auto-checkouts in the background ──
+if (typeof window !== "undefined") {
+  setInterval(() => {
+    // Only poll if there's an active record to avoid unnecessary DB calls when empty
+    // Actually, checking autoCloseOverdueRecords is fine, it will fetch when needed.
+    loadRecords(true);
+  }, 60000);
+}
+
 async function autoCloseOverdueRecords() {
   if (typeof document === "undefined") return;
   try {
@@ -177,8 +186,9 @@ async function autoCloseOverdueRecords() {
   }
 }
 
-async function loadRecords() {
-  if (loaded || loading) return;
+async function loadRecords(force = false) {
+  if (loading) return;
+  if (loaded && !force) return;
   loading = true;
   try {
     await autoCloseOverdueRecords();
