@@ -46,6 +46,11 @@ const MobileKiosk = () => {
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsWatchId, setGpsWatchId] = useState<number | null>(null);
 
+  // Manual Test Login
+  const [showTestLogin, setShowTestLogin] = useState(false);
+  const [testName, setTestName] = useState('');
+  const [testPin, setTestPin] = useState('');
+
 
   const webcamRef = useRef<Webcam>(null);
   // Synchronous lock to prevent duplicate scans/clicks
@@ -215,6 +220,7 @@ const MobileKiosk = () => {
 
   // Helper: aguarda o vídeo estar pronto e captura a foto
   const captureCurrentFrame = (): string | undefined => {
+    if (matchedProvider?.isTest) return undefined;
     const video = webcamRef.current?.video;
     if (!video) return undefined;
     // Aceita readyState 2 (HAVE_CURRENT_DATA) ou superior
@@ -1004,6 +1010,76 @@ const MobileKiosk = () => {
             <BarChart3 className="size-6" />
             <span className="text-[9px] font-bold uppercase tracking-wide">Resumo</span>
           </button>
+        </div>
+      )}
+
+      {/* ── BOTÃO DE TESTE (visível em modo idle/ready) ── */}
+      {(appState === 'idle' || appState === 'ready') && (
+        <button
+          onClick={() => setShowTestLogin(true)}
+          className="fixed top-4 right-4 z-50 bg-slate-900/80 backdrop-blur border border-slate-700 text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-full text-xs font-semibold"
+        >
+          Acesso Teste
+        </button>
+      )}
+
+      {/* ── MODAL LOGIN DE TESTE ── */}
+      {showTestLogin && (
+        <div className="fixed inset-0 z-[60] bg-[#020617]/95 flex flex-col items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
+            <h3 className="text-xl font-bold text-slate-200">Acesso de Teste</h3>
+            <p className="text-xs text-slate-400">Entre com um perfil de teste (com PIN) para simular uma marcação sem o uso da câmera.</p>
+            
+            <div className="space-y-3 pt-2">
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase">Nome (ou parte do nome)</label>
+                <input 
+                  type="text" 
+                  value={testName}
+                  onChange={e => setTestName(e.target.value)}
+                  className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500"
+                  placeholder="Ex: João"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase">PIN (Senha)</label>
+                <input 
+                  type="password" 
+                  inputMode="numeric"
+                  value={testPin}
+                  onChange={e => setTestPin(e.target.value.replace(/\D/g, ''))}
+                  className="w-full mt-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-bold tracking-widest focus:outline-none focus:border-cyan-500"
+                  placeholder="****"
+                  maxLength={6}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <button 
+                onClick={() => { setShowTestLogin(false); setTestName(''); setTestPin(''); }}
+                className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-400 hover:bg-slate-800 font-semibold text-sm"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={() => {
+                  const p = providersList.find(pr => pr.isTest && pr.name.toLowerCase().includes(testName.toLowerCase()) && pr.pin === testPin);
+                  if (p) {
+                    setShowTestLogin(false);
+                    setTestName('');
+                    setTestPin('');
+                    handleMatchedGuy(p);
+                  } else {
+                    toast.error("Nome ou PIN inválido para conta de teste.");
+                  }
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-sm shadow-lg shadow-cyan-900/50"
+              >
+                Entrar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
