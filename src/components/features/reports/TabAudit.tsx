@@ -138,6 +138,19 @@ export function TabAudit({ filteredRecords }: TabAuditProps) {
   const { toast } = useToast();
   const [zoomedPhoto, setZoomedPhoto] = useState<string | null>(null);
   const [zoomedLabel, setZoomedLabel] = useState<string>('');
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Apagar permanentemente este registro de teste?')) return;
+    setIsProcessing(true);
+    const res = await timeStore.deleteRecord(id).catch(() => ({ success: false, error: 'Erro inesperado' }));
+    setIsProcessing(false);
+    if (res.success) {
+      toast({ title: 'Registro apagado', description: 'Registro de teste removido com sucesso.' });
+    } else {
+      toast({ variant: 'destructive', title: 'Erro ao apagar', description: (res as any).error || 'Tente novamente.' });
+    }
+  };
 
   const openPhoto = (src: string, label: string) => {
     setZoomedPhoto(src);
@@ -186,12 +199,13 @@ export function TabAudit({ filteredRecords }: TabAuditProps) {
                 </th>
 
                 <th className="pb-3 px-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+                <th className="pb-3 px-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
               {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-slate-500 italic text-sm">
+                  <td colSpan={7} className="px-4 py-12 text-center text-slate-500 italic text-sm">
                     Nenhum registro encontrado neste período.
                   </td>
                 </tr>
@@ -291,6 +305,19 @@ export function TabAudit({ filteredRecords }: TabAuditProps) {
                           <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 gap-1">
                             <CheckCircle2 className="size-2.5" /> Encerrado
                           </Badge>
+                        )}
+                      </td>
+
+                      {/* Ações */}
+                      <td className="py-4 px-3 text-right">
+                        {provider?.isTest && (
+                          <div className="flex justify-end gap-1.5">
+                            <button disabled={isProcessing} onClick={() => handleDelete(record.id)}
+                              className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-red-500/25 bg-red-500/5 text-red-400 hover:bg-red-500/15 disabled:opacity-50 transition-colors text-[11px] font-medium"
+                              title="Apagar Medição de Teste">
+                              <Trash2 className="size-3" /> Apagar
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
