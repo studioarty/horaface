@@ -138,83 +138,14 @@ export function TabAudit({ filteredRecords }: TabAuditProps) {
   const { toast } = useToast();
   const [zoomedPhoto, setZoomedPhoto] = useState<string | null>(null);
   const [zoomedLabel, setZoomedLabel] = useState<string>('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
-  React.useEffect(() => {
-    setSelectedIds(new Set());
-  }, [filteredRecords]);
-
-  const handleSelectToggle = (id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
-
-  const handleSelectAll = () => {
-    setSelectedIds(selectedIds.size === filteredRecords.length
-      ? new Set()
-      : new Set(filteredRecords.map(r => r.id)));
-  };
 
   const openPhoto = (src: string, label: string) => {
     setZoomedPhoto(src);
     setZoomedLabel(label);
   };
 
-  const handleBatchReopen = async () => {
-    const toReopen = filteredRecords.filter(r => selectedIds.has(r.id) && !!r.checkOut);
-    if (toReopen.length === 0) {
-      toast({ variant: 'destructive', title: 'Ação Inválida', description: 'Nenhum dos selecionados tem Saída registrada.' });
-      return;
-    }
-    if (!window.confirm(`Reabrir ${toReopen.length} registros removendo a Saída?`)) return;
-    setIsProcessing(true);
-    let ok = 0, fail = 0;
-    await Promise.all(toReopen.map(async r => {
-      const res = await timeStore.undoCheckOut(r.id).catch(() => ({ success: false }));
-      res.success ? ok++ : fail++;
-    }));
-    setIsProcessing(false);
-    setSelectedIds(new Set());
-    toast({ title: fail === 0 ? 'Saídas removidas' : 'Reabertura parcial', description: `${ok} reabertos${fail ? `, ${fail} falharam.` : '.'}` });
-  };
-
-  const handleReopen = async (id: string) => {
-    if (!window.confirm('Remover a Saída e reabrir esta medição?')) return;
-    setIsProcessing(true);
-    const res = await timeStore.undoCheckOut(id).catch(() => ({ success: false, error: 'Erro inesperado' }));
-    setIsProcessing(false);
-    if (res.success) {
-      toast({ title: 'Medição reaberta', description: 'Saída removida com sucesso.' });
-    } else {
-      toast({ variant: 'destructive', title: 'Erro', description: (res as any).error || 'Tente novamente.' });
-    }
-  };
-
   return (
     <div className="space-y-4 mt-2">
-      {/* Barra de ações em lote */}
-      {selectedIds.size > 0 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 rounded-xl bg-emerald-500/8 border border-emerald-500/20 animate-in slide-in-from-top-2 duration-300">
-          <span className="text-sm text-emerald-400 font-semibold font-mono">
-            {selectedIds.size} {selectedIds.size === 1 ? 'registro selecionado' : 'registros selecionados'}
-          </span>
-          <div className="flex flex-wrap gap-2">
-            <button disabled={isProcessing} onClick={handleBatchReopen}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 disabled:opacity-50 transition-colors text-xs font-semibold">
-              <RotateCcw className="size-3.5" /> Reabrir Selecionados
-            </button>
-            <button onClick={() => setSelectedIds(new Set())}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-slate-400 hover:bg-slate-800 transition-colors text-xs font-semibold">
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Tabela principal */}
       <div className="hud-card rounded-xl p-4 sm:p-5">
         <div className="flex items-center justify-between mb-5">
@@ -231,13 +162,6 @@ export function TabAudit({ filteredRecords }: TabAuditProps) {
           <table className="w-full text-sm min-w-[900px]">
             <thead>
               <tr className="border-b border-slate-800">
-                <th className="pb-3 pr-3 w-8">
-                  <input type="checkbox"
-                    checked={selectedIds.size === filteredRecords.length && filteredRecords.length > 0}
-                    onChange={handleSelectAll}
-                    className="rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500 size-4 cursor-pointer"
-                  />
-                </th>
                 <th className="pb-3 px-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Colaborador</th>
                 <th className="pb-3 px-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Data</th>
 
@@ -262,13 +186,12 @@ export function TabAudit({ filteredRecords }: TabAuditProps) {
                 </th>
 
                 <th className="pb-3 px-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
-                <th className="pb-3 px-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
               {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-slate-500 italic text-sm">
+                  <td colSpan={6} className="px-4 py-12 text-center text-slate-500 italic text-sm">
                     Nenhum registro encontrado neste período.
                   </td>
                 </tr>
@@ -282,17 +205,7 @@ export function TabAudit({ filteredRecords }: TabAuditProps) {
                   const isActive = record.status === 'active';
 
                   return (
-                    <tr key={record.id}
-                      className={`transition-colors hover:bg-slate-900/40 ${selectedIds.has(record.id) ? 'bg-emerald-950/20' : ''}`}>
-
-                      {/* Checkbox */}
-                      <td className="py-4 pr-3">
-                        <input type="checkbox"
-                          checked={selectedIds.has(record.id)}
-                          onChange={() => handleSelectToggle(record.id)}
-                          className="rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500 size-4 cursor-pointer"
-                        />
-                      </td>
+                    <tr key={record.id} className="transition-colors hover:bg-slate-900/40">
 
                       {/* Colaborador */}
                       <td className="py-4 px-3">
@@ -379,19 +292,6 @@ export function TabAudit({ filteredRecords }: TabAuditProps) {
                             <CheckCircle2 className="size-2.5" /> Encerrado
                           </Badge>
                         )}
-                      </td>
-
-                      {/* Ações */}
-                      <td className="py-4 px-3 text-right">
-                        <div className="flex justify-end gap-1.5">
-                          {record.checkOut && (
-                            <button disabled={isProcessing} onClick={() => handleReopen(record.id)}
-                              className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-cyan-500/25 bg-cyan-500/5 text-cyan-400 hover:bg-cyan-500/15 disabled:opacity-50 transition-colors text-[11px] font-medium whitespace-nowrap"
-                              title="Remover Saída e Reabrir">
-                              <RotateCcw className="size-3" /> Reabrir
-                            </button>
-                          )}
-                        </div>
                       </td>
                     </tr>
                   );
