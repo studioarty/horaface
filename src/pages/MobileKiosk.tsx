@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Camera, MapPin, CheckCircle, AlertTriangle, UserCheck, HelpCircle, RefreshCw, Clock, FileText, BarChart3, TrendingUp, Calendar, ChevronLeft, Printer } from 'lucide-react';
+import { Camera, MapPin, CheckCircle, AlertTriangle, UserCheck, HelpCircle, RefreshCw, Clock, FileText, BarChart3, TrendingUp, Calendar, ChevronLeft, Printer, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import Webcam from 'react-webcam';
 import type { Provider, TimeRecord } from '@/types';
@@ -980,9 +980,9 @@ const MobileKiosk = () => {
         </div>
       )}
 
-      {/* ── BOTTOM ACTION BAR (3 large buttons, visible during ready/error states) ── */}
+      {/* ── BOTTOM ACTION BAR ── */}
       {(appState === 'ready' || appState === 'gps_error' || appState === 'shift_error') && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/98 backdrop-blur-xl border-t border-white/5 grid grid-cols-3">
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/98 backdrop-blur-xl border-t border-white/5 grid grid-cols-4">
           <button
             onClick={() => startScan('checkin')}
             className={`flex flex-col items-center gap-1 py-4 transition-colors active:bg-white/5 ${
@@ -994,7 +994,7 @@ const MobileKiosk = () => {
           </button>
           <button
             onClick={() => startScan('extrato')}
-            className={`flex flex-col items-center gap-1 py-4 transition-colors active:bg-white/5 border-x border-white/5 ${
+            className={`flex flex-col items-center gap-1 py-4 transition-colors active:bg-white/5 border-l border-white/5 ${
               scanMode === 'extrato' ? 'text-cyan-400' : 'text-slate-600 hover:text-slate-400'
             }`}
           >
@@ -1003,31 +1003,28 @@ const MobileKiosk = () => {
           </button>
           <button
             onClick={() => startScan('resumo')}
-            className={`flex flex-col items-center gap-1 py-4 transition-colors active:bg-white/5 ${
+            className={`flex flex-col items-center gap-1 py-4 transition-colors active:bg-white/5 border-l border-white/5 ${
               scanMode === 'resumo' ? 'text-amber-400' : 'text-slate-600 hover:text-slate-400'
             }`}
           >
             <BarChart3 className="size-6" />
             <span className="text-[9px] font-bold uppercase tracking-wide">Resumo</span>
           </button>
+          <button
+            onClick={() => setShowTestLogin(true)}
+            className="flex flex-col items-center gap-1 py-4 transition-colors active:bg-white/5 border-l border-white/5 text-indigo-400 hover:text-indigo-300"
+          >
+            <KeyRound className="size-6" />
+            <span className="text-[9px] font-bold uppercase tracking-wide">Senha</span>
+          </button>
         </div>
-      )}
-
-      {/* ── BOTÃO DE TESTE (visível em modo idle/ready) ── */}
-      {(appState === 'idle' || appState === 'ready') && (
-        <button
-          onClick={() => setShowTestLogin(true)}
-          className="fixed top-4 right-4 z-50 bg-slate-900/80 backdrop-blur border border-slate-700 text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-full text-xs font-semibold"
-        >
-          Acesso Teste
-        </button>
       )}
 
       {/* ── MODAL LOGIN DE TESTE ── */}
       {showTestLogin && (
         <div className="fixed inset-0 z-[60] bg-[#020617]/95 flex flex-col items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
-            <h3 className="text-xl font-bold text-slate-200">Acesso de Teste</h3>
+            <h3 className="text-xl font-bold text-slate-200">Entrar com Senha</h3>
             <p className="text-xs text-slate-400">Entre com um perfil de teste (com PIN) para simular uma marcação sem o uso da câmera.</p>
             
             <div className="space-y-3 pt-2">
