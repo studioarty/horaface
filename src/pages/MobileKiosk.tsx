@@ -340,8 +340,7 @@ const MobileKiosk = () => {
         greetCollaborator('in', matchedProvider.name);
         setAppState('success');
         toast.success('Entrada marcada com sucesso! Bom trabalho.');
-
-
+      }
 
       // Reload records to keep sync in memory
       await timeStore.loadRecords();
