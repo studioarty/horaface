@@ -157,11 +157,20 @@ export default function Providers() {
       return;
     }
 
-    if (capturedDescriptors.length < 4) {
+    if (isTest && !formData.pin) {
+      toast({
+        variant: 'destructive',
+        title: 'Senha Obrigatória',
+        description: 'Um perfil de Teste precisa de um PIN (Senha App) para fazer login no painel.',
+      });
+      return;
+    }
+
+    if (!isTest && capturedDescriptors.length < 4) {
       toast({
         variant: 'destructive',
         title: 'Captura incompleta',
-        description: 'Capture as 4 posições faciais obrigatórias.',
+        description: 'Capture as 4 posições faciais obrigatórias para prestadores reais.',
       });
       return;
     }
@@ -170,7 +179,7 @@ export default function Providers() {
       name: formData.name,
       role: formData.role,
       company: `${formData.company}|${customMinCheckout || ''}|${startActivity || ''}|${endActivity || ''}`,
-      photo: capturedPhoto,
+      photo: (isTest && !capturedPhoto) ? "" : capturedPhoto,
       faceDescriptor: capturedDescriptor,
       faceDescriptors: capturedDescriptors,
       facePhotos: capturedPhotos,
@@ -208,7 +217,7 @@ export default function Providers() {
 
         toast({
           title: 'Prestador cadastrado!',
-          description: `${newProvider.name} — Turno: ${shiftNames} — ${capturedDescriptors.length} posições faciais.`,
+          description: `${newProvider.name} — Turno: ${shiftNames} — ${isTest ? 'Modo de Teste' : `${capturedDescriptors.length} posições faciais`}.`,
         });
         resetForm();
       } catch (err: any) {

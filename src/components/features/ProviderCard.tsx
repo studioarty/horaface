@@ -1,4 +1,4 @@
-import { User, Trash2, ToggleLeft, ToggleRight, Edit2 } from 'lucide-react';
+import { User, Trash2, ToggleLeft, ToggleRight, Edit2, Bot } from 'lucide-react';
 import type { Provider, Shift } from '@/types';
 import { Button } from '@/components/ui/button';
 
@@ -25,7 +25,11 @@ export default function ProviderCard({
   return (
     <div className="hud-card animate-fade-up rounded-lg p-4">
       <div className="flex items-start gap-4">
-        {provider.photo ? (
+        {provider.isTest ? (
+          <div className="flex size-14 items-center justify-center rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+            <Bot className="size-6 text-indigo-400" />
+          </div>
+        ) : provider.photo ? (
           <img
             src={provider.photo}
             alt={provider.name}
@@ -110,7 +114,11 @@ export default function ProviderCard({
           )}
 
           <div className="mt-2 flex items-center gap-1.5">
-            {(provider.faceDescriptors && provider.faceDescriptors.length > 0) || provider.faceDescriptor.length > 0 ? (
+            {provider.isTest ? (
+              <span className="inline-flex items-center gap-1 rounded bg-indigo-500/10 px-1.5 py-0.5 text-[10px] text-indigo-400 border border-indigo-500/20">
+                <Bot className="size-3" /> Conta de Teste
+              </span>
+            ) : (provider.faceDescriptors && provider.faceDescriptors.length > 0) || provider.faceDescriptor.length > 0 ? (
               <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
                 ✓ Face registrada ({provider.faceDescriptors?.length || 1} posição{(provider.faceDescriptors?.length || 1) > 1 ? 'ões' : ''})
               </span>
