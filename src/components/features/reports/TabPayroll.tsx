@@ -21,20 +21,6 @@ export function TabPayroll({ filteredRecords, dateStart, dateEnd }: TabPayrollPr
     const timeStore = useTimeStore();
     const [nfRow, setNfRow] = useState<any | null>(null);
 
-    const handleResetAll = async () => {
-        if (!window.confirm("Atenção! Isso irá apagar TODO o histórico de medição de TODOS os colaboradores. Esta ação não pode ser desfeita. Continuar?")) return;
-        const res = await timeStore.resetAll();
-        if (res.success) { alert("Todo o histórico foi zerado com sucesso."); timeStore.reload(); }
-        else alert("Erro ao zerar histórico: " + res.error);
-    };
-
-    const handleResetProvider = async (providerId: string, providerName: string) => {
-        if (!window.confirm(`Deseja realmente apagar o histórico de ${providerName}?`)) return;
-        const res = await timeStore.resetProvider(providerId);
-        if (res.success) { alert(`Histórico de ${providerName} apagado.`); timeStore.reload(); }
-        else alert("Erro ao zerar histórico: " + res.error);
-    };
-
     const payrollData = useMemo(() => {
         const map = new Map<string, any>();
 
@@ -289,13 +275,6 @@ export function TabPayroll({ filteredRecords, dateStart, dateEnd }: TabPayrollPr
                         <Badge variant="outline" className="border-cyan-500/30 text-cyan-400 bg-cyan-950/20 hidden sm:flex">
                             Visão Sintética
                         </Badge>
-                        <button
-                            onClick={handleResetAll}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-400 bg-red-500/10 border border-red-500/20 rounded hover:bg-red-500/20 transition-all"
-                        >
-                            <AlertTriangle className="size-3.5" />
-                            Zerar Sistema
-                        </button>
                     </div>
                 </div>
 
@@ -351,13 +330,6 @@ export function TabPayroll({ filteredRecords, dateStart, dateEnd }: TabPayrollPr
                                                         {fmtBRL(row.finalPayment)}
                                                     </Badge>
                                                 )}
-                                                <button
-                                                    onClick={() => handleResetProvider(row.providerId, row.providerName)}
-                                                    title="Limpar Histórico"
-                                                    className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded transition-colors"
-                                                >
-                                                    <Trash2 className="size-3.5" />
-                                                </button>
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 text-center">

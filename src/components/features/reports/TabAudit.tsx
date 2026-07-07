@@ -164,20 +164,6 @@ export function TabAudit({ filteredRecords }: TabAuditProps) {
     setZoomedLabel(label);
   };
 
-  const handleBatchDelete = async () => {
-    if (selectedIds.size === 0) return;
-    if (!window.confirm(`Apagar permanentemente os ${selectedIds.size} registros selecionados?`)) return;
-    setIsProcessing(true);
-    let ok = 0, fail = 0;
-    await Promise.all(Array.from(selectedIds).map(async id => {
-      const res = await timeStore.deleteRecord(id).catch(() => ({ success: false }));
-      res.success ? ok++ : fail++;
-    }));
-    setIsProcessing(false);
-    setSelectedIds(new Set());
-    toast({ title: fail === 0 ? 'Registros apagados' : 'Exclusão parcial', description: `${ok} apagados${fail ? `, ${fail} falharam.` : '.'}` });
-  };
-
   const handleBatchReopen = async () => {
     const toReopen = filteredRecords.filter(r => selectedIds.has(r.id) && !!r.checkOut);
     if (toReopen.length === 0) {
@@ -194,18 +180,6 @@ export function TabAudit({ filteredRecords }: TabAuditProps) {
     setIsProcessing(false);
     setSelectedIds(new Set());
     toast({ title: fail === 0 ? 'Saídas removidas' : 'Reabertura parcial', description: `${ok} reabertos${fail ? `, ${fail} falharam.` : '.'}` });
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Apagar permanentemente esta medição?')) return;
-    setIsProcessing(true);
-    const res = await timeStore.deleteRecord(id).catch(() => ({ success: false, error: 'Erro inesperado' }));
-    setIsProcessing(false);
-    if (res.success) {
-      toast({ title: 'Medição apagada', description: 'Registro removido com sucesso.' });
-    } else {
-      toast({ variant: 'destructive', title: 'Erro ao apagar', description: (res as any).error || 'Tente novamente.' });
-    }
   };
 
   const handleReopen = async (id: string) => {
@@ -232,10 +206,6 @@ export function TabAudit({ filteredRecords }: TabAuditProps) {
             <button disabled={isProcessing} onClick={handleBatchReopen}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 disabled:opacity-50 transition-colors text-xs font-semibold">
               <RotateCcw className="size-3.5" /> Reabrir Selecionados
-            </button>
-            <button disabled={isProcessing} onClick={handleBatchDelete}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 disabled:opacity-50 transition-colors text-xs font-semibold">
-              <Trash2 className="size-3.5" /> Apagar Selecionados
             </button>
             <button onClick={() => setSelectedIds(new Set())}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-slate-400 hover:bg-slate-800 transition-colors text-xs font-semibold">
@@ -421,11 +391,6 @@ export function TabAudit({ filteredRecords }: TabAuditProps) {
                               <RotateCcw className="size-3" /> Reabrir
                             </button>
                           )}
-                          <button disabled={isProcessing} onClick={() => handleDelete(record.id)}
-                            className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-red-500/25 bg-red-500/5 text-red-400 hover:bg-red-500/15 disabled:opacity-50 transition-colors text-[11px] font-medium"
-                            title="Apagar Medição">
-                            <Trash2 className="size-3" /> Apagar
-                          </button>
                         </div>
                       </td>
                     </tr>
