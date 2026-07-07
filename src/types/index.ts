@@ -15,6 +15,7 @@ export interface Provider {
   chatPermissionType?: 'none' | 'all' | 'custom';
   chatAllowedProviders?: string[]; // IDs de prestadores permitidos
   active: boolean;
+  isTest?: boolean;
   createdAt: string;
 }
 

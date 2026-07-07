@@ -22,6 +22,7 @@ function mapProviderFromDB(row: any): Provider {
     chatAllowedProviders: row.chat_allowed_providers ? JSON.parse(row.chat_allowed_providers) : [],
     active: row.active,
     allowBreak: row.allow_break || false,
+    isTest: row.is_test || false,
     createdAt: row.created_at,
   };
 }
@@ -62,6 +63,7 @@ export async function insertProvider(p: Provider): Promise<{error?: any}> {
       shift_ids: p.shiftIds || (p.shiftId ? [p.shiftId] : []),
       active: p.active,
       allow_break: p.allowBreak || false,
+      is_test: p.isTest || false,
       pin: p.pin || null,
       hourly_rate: p.hourlyRate !== undefined ? p.hourlyRate : null,
       chat_permission_type: p.chatPermissionType || "none",
@@ -97,6 +99,7 @@ export async function updateProviderDB(id: string, patch: Partial<Provider>): Pr
   if (patch.chatPermissionType !== undefined) dbPatch.chat_permission_type = patch.chatPermissionType;
   if (patch.chatAllowedProviders !== undefined) dbPatch.chat_allowed_providers = JSON.stringify(patch.chatAllowedProviders);
   if (patch.allowBreak !== undefined) dbPatch.allow_break = patch.allowBreak;
+  if (patch.isTest !== undefined) dbPatch.is_test = patch.isTest;
 
   const { error } = await supabase.from("providers").update(dbPatch).eq("id", id);
   if (error) console.error("updateProviderDB error:", error);

@@ -42,6 +42,7 @@ export default function Providers() {
   const [chatPermissionType, setChatPermissionType] = useState<'none' | 'all' | 'custom'>('none');
   const [chatAllowedProviders, setChatAllowedProviders] = useState<string[]>([]);
   const [chatSearchQuery, setChatSearchQuery] = useState('');
+  const [isTest, setIsTest] = useState(false);
 
   const [selectedShiftIds, setSelectedShiftIds] = useState<string[]>([]);
   const [capturedPhoto, setCapturedPhoto] = useState('');
@@ -93,6 +94,7 @@ export default function Providers() {
     setChatPermissionType('none');
     setChatAllowedProviders([]);
     setChatSearchQuery('');
+    setIsTest(false);
   };
 
   const handleFaceCapture = (
@@ -132,6 +134,7 @@ export default function Providers() {
     setChatPermissionType(provider.chatPermissionType || 'none');
     setChatAllowedProviders(provider.chatAllowedProviders || []);
     setChatSearchQuery('');
+    setIsTest(provider.isTest || false);
     
     setRefValue('');
     
@@ -177,6 +180,7 @@ export default function Providers() {
       pin: formData.pin ? formData.pin : undefined,
       chatPermissionType,
       chatAllowedProviders,
+      isTest,
     };
 
     if (editingProviderId) {
@@ -326,6 +330,20 @@ export default function Providers() {
                     className="mt-1 border-border bg-elevated"
                   />
                 </div>
+                
+                <div className="sm:col-span-2 flex items-center gap-2 mt-2 p-3 bg-slate-900/50 rounded-lg border border-slate-700/50">
+                  <input
+                    type="checkbox"
+                    id="isTest"
+                    checked={isTest}
+                    onChange={(e) => setIsTest(e.target.checked)}
+                    className="rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-cyan-500 size-4 cursor-pointer"
+                  />
+                  <Label htmlFor="isTest" className="text-slate-300 cursor-pointer">
+                    Prestador de Teste (marcar caso este perfil seja usado apenas para testes)
+                  </Label>
+                </div>
+                
                 <div>
                   <Label className="text-text-secondary">Cargo/Função</Label>
                   <Input
