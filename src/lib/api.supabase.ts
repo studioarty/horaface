@@ -201,7 +201,7 @@ function mapRecordFromDB(row: any): TimeRecord {
     checkIn: row.check_in,
     checkOut: row.check_out || null,
     status: (row.check_out && row.check_in === row.check_out) ? "irregular" : row.check_out ? "completed" : "active",
-    date: checkInDate.toISOString().split("T")[0],
+    date: row.check_in ? new Date(row.check_in).toLocaleDateString("sv") : "",
     photoUrl: row.photo_url || "",
     location: row.location || "",
     breakStart: row.break_start || null,
@@ -305,7 +305,7 @@ export async function insertCheckIn(providerId: string, photoUrl?: string, locat
     checkIn: now.toISOString(),
     checkOut: null,
     status: "active",
-    date: now.toISOString().split("T")[0],
+    date: new Date().toLocaleDateString("sv"),
     photoUrl: photoUrl || "",
     location: location || "",
   };
