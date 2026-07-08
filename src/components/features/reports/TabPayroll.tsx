@@ -256,10 +256,7 @@ export function TabPayroll({ filteredRecords, dateStart, dateEnd }: TabPayrollPr
     ⚠️ Taxa horária não configurada para este colaborador. Configure em Colaboradores → editar.
   </div>`}
 
-  <div class="footer">
-    <div class="sign-area">Assinatura do Colaborador</div>
-    <div class="sign-area">Assinatura do Responsável</div>
-  </div>
+
 
   <div style="margin-top:32px;text-align:center;font-size:11px;color:#d1d5db;border-top:1px solid #e5e7eb;padding-top:16px">
     Documento gerado pelo Sistema HoraFace · ${new Date().toLocaleString('pt-BR')}
