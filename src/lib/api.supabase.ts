@@ -1135,8 +1135,10 @@ export async function uploadFacePhoto(blob: Blob, providerId: string, index: num
 export interface AdminUser {
   id: string;
   username: string;
+  displayName?: string;
   email?: string;
   role: string;
+  permissions?: string[];
   createdAt?: string;
 }
 
@@ -1187,32 +1189,35 @@ export async function loginAdmin(username: string, pass: string): Promise<{ toke
 }
 
 export async function fetchAdmins(): Promise<AdminUser[]> {
-  const { data, error } = await supabase.from('admins').select('id, username, email, role, created_at').order('created_at', { ascending: true });
+  const { data, error } = await supabase.from('admins').select('id, username, display_name, email, role, permissions, created_at').order('created_at', { ascending: true });
   if (error) return [];
   return (data || []).map(row => ({
     id: row.id,
     username: row.username,
+    displayName: row.display_name || '',
     email: row.email,
     role: row.role,
+    permissions: row.permissions || [],
     createdAt: row.created_at
   }));
 }
 
-export async function insertAdmin(username: string, email: string, pass: string, role: string): Promise<{ success: boolean; error?: string }> {
+export async function insertAdmin(username: string, email: string, pass: string, role: string, displayName?: string, permissions?: string[]): Promise<{ success: boolean; error?: string }> {
   try {
     const newId = `adm-${Date.now()}`;
     const hashed = await hashPass(pass);
     
-    const payload = {
+    const payload: any = {
       id: newId,
       username,
       password_hash: hashed,
-      role
+      role,
+      display_name: displayName || '',
+      permissions: permissions || []
     };
     
-    // Somente envia se o email existir de fato no Supabase DB original
     if (email) {
-       (payload as any).email = email;
+       payload.email = email;
     }
 
     const { error } = await supabase.from('admins').insert(payload);
@@ -1225,6 +1230,15 @@ export async function insertAdmin(username: string, email: string, pass: string,
   } catch (err: any) {
     return { success: false, error: "Erro de comunicação ao salvar usuário." };
   }
+}
+
+export async function updateAdmin(id: string, updates: { displayName?: string; role?: string; permissions?: string[] }): Promise<void> {
+  const payload: any = {};
+  if (updates.displayName !== undefined) payload.display_name = updates.displayName;
+  if (updates.role !== undefined) payload.role = updates.role;
+  if (updates.permissions !== undefined) payload.permissions = updates.permissions;
+  const { error } = await supabase.from('admins').update(payload).eq('id', id);
+  if (error) console.error('updateAdmin error', error);
 }
 
 export async function deleteAdminDB(id: string): Promise<void> {
