@@ -151,8 +151,16 @@ export default function Reports() {
         const prov = providerStore.providers.find((p) => p.id === rec.providerId);
         if (!prov) return;
         if (!map.has(rec.providerId)) {
-          const shiftId = prov.shiftIds?.[0] || prov.shiftId;
-          const shift = shiftStore.shifts.find(s => s.id === shiftId);
+          const allShiftIdsForExport = prov.shiftIds?.length
+              ? prov.shiftIds
+              : prov.shiftId ? [prov.shiftId] : [];
+          const assignedShiftsExport = allShiftIdsForExport
+              .map(sid => shiftStore.shifts.find(s => s.id === sid))
+              .filter(Boolean);
+          const shiftDisplayNameExport = assignedShiftsExport.length > 0
+              ? assignedShiftsExport.map(s => (s!.name || '').split('|')[0]).join('/')
+              : 'Sem Escala';
+          const shift = assignedShiftsExport[0] || null;
           let dailyExpectedHours = 0;
           if (shift) {
             const [sH, sM] = (shift.startTime || '00:00').split(':').map(Number);
@@ -164,7 +172,7 @@ export default function Reports() {
           }
           map.set(rec.providerId, {
             providerName: prov.name,
-            shiftName: shift?.name || 'Sem Escala',
+            shiftName: shiftDisplayNameExport,
             hourlyRate: prov.hourlyRate || 0,
             totalRealHours: 0,
             uniqueDaysWorked: new Set(),

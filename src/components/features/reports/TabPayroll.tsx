@@ -29,8 +29,16 @@ export function TabPayroll({ filteredRecords, dateStart, dateEnd }: TabPayrollPr
             if (!prov) return;
 
             if (!map.has(rec.providerId)) {
-                const shiftId = prov.shiftIds?.[0] || prov.shiftId;
-                const shift = shiftStore.shifts.find(s => s.id === shiftId);
+                const allShiftIdsForName = prov.shiftIds?.length
+                    ? prov.shiftIds
+                    : prov.shiftId ? [prov.shiftId] : [];
+                const assignedShifts = allShiftIdsForName
+                    .map(sid => shiftStore.shifts.find(s => s.id === sid))
+                    .filter(Boolean);
+                const shiftDisplayName = assignedShifts.length > 0
+                    ? assignedShifts.map(s => (s!.name || '').split('|')[0]).join('/')
+                    : 'Sem Escala';
+                const shift = assignedShifts[0] || null;
                 let dailyExpectedHours = 0;
                 if (shift) {
                     const [sH, sM] = (shift.startTime || '00:00').split(':').map(Number);
@@ -43,7 +51,7 @@ export function TabPayroll({ filteredRecords, dateStart, dateEnd }: TabPayrollPr
                 map.set(rec.providerId, {
                     providerId: rec.providerId,
                     providerName: prov.name,
-                    shiftName: shift?.name || 'Sem Escala',
+                    shiftName: shiftDisplayName,
                     hourlyRate: prov.hourlyRate || 0,
                     totalRealHours: 0,
                     uniqueDaysWorked: new Set<string>(),
